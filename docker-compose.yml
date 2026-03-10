@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # Веб-сервер (nginx)
+  web:
+    image: nginx:alpine
+    container_name: ${STACK_NAME}_web
+    ports:
+      - "${WEB_PORT:-80}:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./public:/var/www/html/public
+    depends_on:
+      - app
+    networks:
+      - ibank-network
+    restart: unless-stopped
+    labels:
+      - "sandbox=${STACK_NAME}"
+      - "type=web"
+
+  # Backend приложение (PHP-FPM)
+  app:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    container_name: ${STACK_NAME}_app
+    volumes:
+      - ./:/var/www/html
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_NAME}
+      - DB_USERNAME=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+    depends_on:
+      - db
+      - redis
+    networks:
+      - ibank-network
+    restart: unless-stopped
+    labels:
+      - "sandbox=${STACK_NAME}"
+      - "type=app"
+
+  # База данных
+  db:
+    image: mysql:8.0
+    container_name: ${STACK_NAME}_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    networks:
+      - ibank-network
+    restart: unless-stopped
+    labels:
+      - "sandbox=${STACK_NAME}"
+      - "type=db"
+
+  # Redis для кэша
+  redis:
+    image: redis:alpine
+    container_name: ${STACK_NAME}_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - ibank-network
+    restart: unless-stopped
+    labels:
+      - "sandbox=${STACK_NAME}"
+      - "type=redis"
+
+networks:
+  ibank-network:
+    driver: bridge
+
+volumes:
+  db_data:
