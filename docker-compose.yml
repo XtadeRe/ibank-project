@@ -13,7 +13,7 @@ services:
       - "release=stable"
 
   app:
-    image: nginx:stable
+    image: php:8.2-fpm
     container_name: ${STACK_NAME}_app
     labels:
       - "version=1.0.0"
