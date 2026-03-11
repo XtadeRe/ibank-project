@@ -2,35 +2,35 @@ version: '3.8'
 
 services:
   web:
-    image: nginx:alpine
+    image: nginx:stable
     container_name: ${STACK_NAME}_web
     ports:
       - "80"
-    restart: unless-stopped
     labels:
-      - "version=stable"
+      - "version=1.0.0"
       - "branch=master"
       - "environment=production"
+      - "release=stable"
 
   app:
-    image: nginx:alpine
+    image: nginx:stable
     container_name: ${STACK_NAME}_app
-    restart: unless-stopped
     labels:
-      - "version=stable"
+      - "version=1.0.0"
       - "branch=master"
       - "environment=production"
+      - "release=stable"
 
   db:
     image: mysql:8.0
     container_name: ${STACK_NAME}_db
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_PASSWORD: secure_root_password
       MYSQL_DATABASE: production_db
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
-    restart: unless-stopped
+      MYSQL_USER: prod_user
+      MYSQL_PASSWORD: strong_password
     labels:
-      - "version=stable"
+      - "version=1.0.0"
       - "branch=master"
       - "environment=production"
+      - "release=stable"
