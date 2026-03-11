@@ -2,35 +2,38 @@ version: '3.8'
 
 services:
   web:
-    image: nginx:alpine
+    image: nginx:latest
     container_name: ${STACK_NAME}_web
     ports:
       - "80"
-    restart: unless-stopped
+      - "443"
     labels:
-      - "version=develop"
+      - "version=2.0.0-beta"
       - "branch=develop"
       - "environment=development"
+      - "release=beta"
+      - "feature=debug-mode"
 
   app:
-    image: nginx:alpine
+    image: nginx:latest
     container_name: ${STACK_NAME}_app
-    restart: unless-stopped
     labels:
-      - "version=develop"
+      - "version=2.0.0-beta"
       - "branch=develop"
       - "environment=development"
+      - "release=beta"
+      - "feature=debug-mode"
 
   db:
     image: mysql:8.0
     container_name: ${STACK_NAME}_db
     environment:
-      MYSQL_ROOT_PASSWORD: develop_password
-      MYSQL_DATABASE: develop_db
-      MYSQL_USER: developer
+      MYSQL_ROOT_PASSWORD: dev_password
+      MYSQL_DATABASE: development_db
+      MYSQL_USER: dev_user
       MYSQL_PASSWORD: dev_pass
-    restart: unless-stopped
     labels:
-      - "version=develop"
+      - "version=2.0.0-beta"
       - "branch=develop"
       - "environment=development"
+      - "release=beta"
