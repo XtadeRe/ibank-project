@@ -7,18 +7,30 @@ services:
     ports:
       - "80"
     restart: unless-stopped
+    labels:
+      - "version=stable"
+      - "branch=master"
+      - "environment=production"
 
   app:
     image: nginx:alpine
     container_name: ${STACK_NAME}_app
     restart: unless-stopped
+    labels:
+      - "version=stable"
+      - "branch=master"
+      - "environment=production"
 
   db:
     image: mysql:8.0
     container_name: ${STACK_NAME}_db
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: sandbox
+      MYSQL_DATABASE: production_db
       MYSQL_USER: user
       MYSQL_PASSWORD: password
     restart: unless-stopped
+    labels:
+      - "version=stable"
+      - "branch=master"
+      - "environment=production"
