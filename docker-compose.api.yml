@@ -1,52 +1,33 @@
 version: '3.8'
 
 services:
-  # API сервер
-  api:
-    build:
-      context: ./docker/php
-      dockerfile: Dockerfile
-    container_name: ${STACK_NAME}_api
-    volumes:
-      - ./:/var/www/html
+  web:
+    image: nginx:alpine
+    container_name: ${STACK_NAME}_web
     ports:
-      - "${API_PORT:-8000}:8000"
-    environment:
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=${DB_NAME}
-      - DB_USERNAME=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-    depends_on:
-      - db
-    networks:
-      - api-network
-    restart: unless-stopped
+      - "80"
+      - "443"  # В develop добавили HTTPS
     labels:
-      - "sandbox=${STACK_NAME}"
-      - "type=api"
+      - "version=develop"
+      - "branch=develop"
+    environment:
+      - NGINX_ENTRYPOINT_QUIET_LOGS=1
 
-  # База данных для API
+  app:
+    image: nginx:alpine
+    container_name: ${STACK_NAME}_app
+    labels:
+      - "version=develop"
+      - "branch=develop"
+
   db:
     image: mysql:8.0
-    container_name: ${STACK_NAME}_api_db
+    container_name: ${STACK_NAME}_db
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - api_db_data:/var/lib/mysql
-    networks:
-      - api-network
-    restart: unless-stopped
+      MYSQL_ROOT_PASSWORD: develop_password
+      MYSQL_DATABASE: develop_db
+      MYSQL_USER: developer
+      MYSQL_PASSWORD: dev_pass
     labels:
-      - "sandbox=${STACK_NAME}"
-      - "type=db"
-
-volumes:
-  api_db_data:
-
-networks:
-  api-network:
-    driver: bridge
+      - "version=develop"
+      - "branch=develop"
