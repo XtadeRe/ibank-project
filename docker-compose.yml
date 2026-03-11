@@ -15,7 +15,7 @@ services:
       - "feature=debug-mode"
 
   app:
-    image: nginx:latest
+    image: php:8.2-fpm
     container_name: ${STACK_NAME}_app
     labels:
       - "version=2.0.0-beta"
