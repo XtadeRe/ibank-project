@@ -7,9 +7,6 @@ services:
     container_name: ${STACK_NAME}_ibank
     ports:
       - "${IB_PORT:-8080}:80"
-    volumes:
-      - ./ibank:/usr/share/nginx/html
-      - ./nginx/ibank.conf:/etc/nginx/conf.d/default.conf
     networks:
       - ibank-network
     restart: unless-stopped
