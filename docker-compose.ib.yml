@@ -13,7 +13,3 @@ services:
     labels:
       - "sandbox=${STACK_NAME}"
       - "type=ibank"
-
-networks:
-  ibank-network:
-    driver: bridge
