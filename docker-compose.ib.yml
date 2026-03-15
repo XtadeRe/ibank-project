@@ -6,9 +6,7 @@ services:
     image: nginx:latest
     container_name: ${STACK_NAME}_ibank
     ports:
-      - "${IB_PORT:-8080}:80"
-    networks:
-      - ibank-network
+      - "80"
     restart: unless-stopped
     labels:
       - "sandbox=${STACK_NAME}"
