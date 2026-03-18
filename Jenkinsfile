@@ -2,8 +2,8 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_AGENT_URL = 'http://192.168.1.100:3001'  // IP твоей машины
-        LARAVEL_API_URL = 'http://192.168.1.100:8000'  // IP твоей машины
+        LARAVEL_API_URL = 'http://host.docker.internal:8000'
+        DOCKER_AGENT_URL = 'http://host.docker.internal:3001'
     }
     
     stages {
