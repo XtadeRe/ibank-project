@@ -1,62 +1,52 @@
 pipeline {
     agent any
     
+    parameters {
+        string(name: 'branch', defaultValue: 'develop', description: 'Git branch to build')
+        string(name: 'stack_type', defaultValue: 'full', description: 'Stack type (full/only-ib)')
+        string(name: 'triggered_by', defaultValue: 'jenkins', description: 'Trigger source')
+    }
+    
     environment {
-        LARAVEL_API_URL = 'http://host.docker.internal:8000'
-        DOCKER_AGENT_URL = 'http://host.docker.internal:3001'
+        LARAVEL_API = 'http://host.docker.internal:8000'
     }
     
     stages {
         stage('Checkout') {
             steps {
-                echo '✅ Код получен'
+                checkout scm
+                echo "✅ Branch: ${params.branch}"
             }
         }
         
-        stage('Validate Docker Compose') {
+        stage('Validate') {
             steps {
                 script {
-                    // Проверяем наличие compose файлов
-                    if (fileExists('docker-compose.yml')) {
-                        echo '✅ docker-compose.yml найден'
-                    }
-                    if (fileExists('docker-compose.ib.yml')) {
-                        echo '✅ docker-compose.ib.yml найден'
+                    def composeFile = params.stack_type == 'full' ? 'docker-compose.yml' : 'docker-compose.ib.yml'
+                    if (fileExists(composeFile)) {
+                        echo "✅ ${composeFile} found"
+                    } else {
+                        error "${composeFile} not found!"
                     }
                 }
             }
         }
         
-        stage('Notify Sandbox') {
+        stage('Notify Laravel') {
             steps {
                 script {
                     sh """
-                        curl -X POST ${LARAVEL_API_URL}/api/jenkins/webhook \\
+                        curl -X POST ${LARAVEL_API}/api/jenkins/webhook \\
                             -H "Content-Type: application/json" \\
                             -d '{
-                                "branch": "${env.BRANCH_NAME}",
-                                "build_number": "${env.BUILD_NUMBER}",
-                                "status": "success"
-                            }'
-                    """
-                }
-            }
-        }
-        
-        stage('Deploy Test Stack') {
-            when {
-                branch 'develop'
-            }
-            steps {
-                script {
-                    sh """
-                        curl -X POST ${LARAVEL_API_URL}/api/sandboxes \\
-                            -H "Content-Type: application/json" \\
-                            -d '{
-                                "name": "auto-${env.BUILD_NUMBER}",
-                                "git_branch": "${env.BRANCH_NAME}",
-                                "stack_type": "full",
-                                "machine_ip": "127.0.0.1"
+                                "build": {
+                                    "number": ${env.BUILD_NUMBER},
+                                    "status": "SUCCESS",
+                                    "parameters": {
+                                        "branch": "${params.branch}",
+                                        "stack_type": "${params.stack_type}"
+                                    }
+                                }
                             }'
                     """
                 }
@@ -65,11 +55,21 @@ pipeline {
     }
     
     post {
-        success {
-            echo '🎉 Pipeline успешно выполнен!'
-        }
         failure {
-            echo '❌ Pipeline завершился ошибкой'
+            sh """
+                curl -X POST ${LARAVEL_API}/api/jenkins/webhook \\
+                    -H "Content-Type: application/json" \\
+                    -d '{
+                        "build": {
+                            "number": ${env.BUILD_NUMBER},
+                            "status": "FAILURE",
+                            "parameters": {
+                                "branch": "${params.branch}",
+                                "stack_type": "${params.stack_type}"
+                            }
+                        }
+                    }'
+            """
         }
     }
 }
