@@ -33,26 +33,25 @@ pipeline {
         }
         
         stage('Notify Laravel') {
-            steps {
-                script {
-                    sh """
-                        curl -X POST ${LARAVEL_API}/api/jenkins/webhook \\
-                            -H "Content-Type: application/json" \\
-                            -d '{
-                                "build": {
-                                    "number": ${env.BUILD_NUMBER},
-                                    "status": "SUCCESS",
-                                    "parameters": {
-                                        "branch": "${params.branch}",
-                                        "stack_type": "${params.stack_type}"
-                                    }
-                                }
-                            }'
-                    """
-                }
-            }
+    steps {
+        script {
+            sh """
+                curl -X POST http://host.docker.internal:8000/api/jenkins/webhook \\
+                    -H "Content-Type: application/json" \\
+                    -d '{
+                        "build": {
+                            "number": ${env.BUILD_NUMBER},
+                            "status": "${currentBuild.currentResult}",
+                            "parameters": {
+                                "branch": "${params.branch}",
+                                "stack_type": "${params.stack_type}"
+                            }
+                        }
+                    }'
+            """
         }
     }
+}
     
     post {
         failure {
