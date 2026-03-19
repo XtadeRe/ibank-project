@@ -4,7 +4,7 @@ pipeline {
     parameters {
         string(name: 'branch', defaultValue: 'develop', description: 'Git branch to build')
         string(name: 'stack_type', defaultValue: 'full', description: 'Stack type (full/only-ib)')
-        string(name: 'triggered_by', defaultValue: 'jenkins', description: 'Trigger source')
+        string(name: 'stack_name', defaultValue: '', description: 'Stack name')
     }
     
     environment {
