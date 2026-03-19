@@ -2,21 +2,9 @@ pipeline {
     agent any
     
     parameters {
-        choice(
-            name: 'branch',
-            choices: ['master', 'develop'],
-            description: 'Выберите ветку для сборки'
-        )
-        choice(
-            name: 'stack_type',
-            choices: ['full', 'only-ib'],
-            description: 'Тип стека'
-        )
-        string(
-            name: 'stack_name',
-            defaultValue: '',
-            description: 'Введите имя стека (оставьте пустым для авто-генерации)'
-        )
+        string(name: 'branch', defaultValue: 'develop', description: 'Git branch to build')
+        string(name: 'stack_type', defaultValue: 'full', description: 'Stack type (full/only-ib)')
+        string(name: 'stack_name', defaultValue: '', description: 'Stack name')
     }
     
     environment {
@@ -27,9 +15,8 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
-                echo "Branch: ${params.branch}"
-                echo "Stack type: ${params.stack_type}"
-                echo "Stack name: ${params.stack_name ?: 'будет сгенерирован'}"
+                echo "✅ Branch: ${params.branch}"
+                echo "✅ Stack name: ${params.stack_name}"
             }
         }
         
@@ -38,7 +25,7 @@ pipeline {
                 script {
                     def composeFile = params.stack_type == 'full' ? 'docker-compose.yml' : 'docker-compose.ib.yml'
                     if (fileExists(composeFile)) {
-                        echo "${composeFile} found"
+                        echo "✅ ${composeFile} found"
                     } else {
                         error "${composeFile} not found!"
                     }
@@ -49,11 +36,8 @@ pipeline {
         stage('Notify Laravel') {
             steps {
                 script {
-                    // Определяем имя стека
-                    def stackName = params.stack_name ?: "jenkins-${params.branch}-${env.BUILD_NUMBER}"
-                    
                     sh """
-                        curl -X POST ${LARAVEL_API}/api/jenkins/webhook \\
+                        curl -X POST http://host.docker.internal:8000/api/jenkins/webhook \\
                             -H "Content-Type: application/json" \\
                             -d '{
                                 "build": {
@@ -62,7 +46,7 @@ pipeline {
                                     "parameters": {
                                         "branch": "${params.branch}",
                                         "stack_type": "${params.stack_type}",
-                                        "stack_name": "${stackName}"
+                                        "stack_name": "${params.stack_name}"
                                     }
                                 }
                             }'
