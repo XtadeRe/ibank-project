@@ -44,7 +44,8 @@ pipeline {
                                     "status": "SUCCESS",
                                     "parameters": {
                                         "branch": "${params.branch}",
-                                        "stack_type": "${params.stack_type}"
+                                        "stack_type": "${params.stack_type}",
+                                        "stack_name": "${params.stack_name}"
                                     }
                                 }
                             }'
