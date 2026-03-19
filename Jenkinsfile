@@ -4,7 +4,7 @@ pipeline {
     parameters {
         string(name: 'branch', defaultValue: 'develop', description: 'Git branch to build')
         string(name: 'stack_type', defaultValue: 'full', description: 'Stack type (full/only-ib)')
-        string(name: 'triggered_by', defaultValue: 'jenkins', description: 'Trigger source')
+        string(name: 'stack_name', defaultValue: '', description: 'Stack name')
     }
     
     environment {
@@ -16,6 +16,7 @@ pipeline {
             steps {
                 checkout scm
                 echo "✅ Branch: ${params.branch}"
+                echo "✅ Stack name: ${params.stack_name}"
             }
         }
         
@@ -33,25 +34,27 @@ pipeline {
         }
         
         stage('Notify Laravel') {
-    steps {
-        script {
-            sh """
-                curl -X POST http://host.docker.internal:8000/api/jenkins/webhook \\
-                    -H "Content-Type: application/json" \\
-                    -d '{
-                        "build": {
-                            "number": ${env.BUILD_NUMBER},
-                            "status": "${currentBuild.currentResult}",
-                            "parameters": {
-                                "branch": "${params.branch}",
-                                "stack_type": "${params.stack_type}"
-                            }
-                        }
-                    }'
-            """
+            steps {
+                script {
+                    sh """
+                        curl -X POST http://host.docker.internal:8000/api/jenkins/webhook \\
+                            -H "Content-Type: application/json" \\
+                            -d '{
+                                "build": {
+                                    "number": ${env.BUILD_NUMBER},
+                                    "status": "${currentBuild.currentResult}",
+                                    "parameters": {
+                                        "branch": "${params.branch}",
+                                        "stack_type": "${params.stack_type}",
+                                        "stack_name": "${params.stack_name}"
+                                    }
+                                }
+                            }'
+                    """
+                }
+            }
         }
     }
-}
     
     post {
         failure {
@@ -64,7 +67,8 @@ pipeline {
                             "status": "FAILURE",
                             "parameters": {
                                 "branch": "${params.branch}",
-                                "stack_type": "${params.stack_type}"
+                                "stack_type": "${params.stack_type}",
+                                "stack_name": "${params.stack_name}"
                             }
                         }
                     }'
