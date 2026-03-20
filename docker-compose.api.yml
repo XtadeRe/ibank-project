@@ -15,9 +15,12 @@ services:
     image: mysql:8.0
     container_name: ${STACK_NAME}_db
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: api_db
-      MYSQL_USER: api_user
-      MYSQL_PASSWORD: api_pass
+      MYSQL_ROOT_PASSWORD: dev_password
+      MYSQL_DATABASE: development_db
+      MYSQL_USER: dev_user
+      MYSQL_PASSWORD: dev_pass
     labels:
-      - "type=database"
+      - "version=2.0.0-beta"
+      - "branch=develop"
+      - "environment=development"
+      - "release=beta"
