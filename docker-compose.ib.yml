@@ -12,8 +12,6 @@ services:
       - app
     networks:
       - app-network
-    labels:
-      - "type=webserver"
 
   # Backend (Laravel PHP-FPM)
   app:
@@ -33,8 +31,6 @@ services:
       - db
     networks:
       - app-network
-    labels:
-      - "type=backend"
 
   # База данных
   db:
@@ -49,8 +45,6 @@ services:
       - db_data:/var/lib/mysql
     networks:
       - app-network
-    labels:
-      - "type=database"
 
   # Frontend (React)
   frontend:
@@ -66,8 +60,6 @@ services:
       - app
     networks:
       - app-network
-    labels:
-      - "type=frontend"
 
 networks:
   app-network:
