@@ -9,7 +9,6 @@ services:
       - "branch=develop"
       - "environment=development"
       - "release=beta"
-      - "feature=debug-mode"
 
   db:
     image: mysql:8.0
