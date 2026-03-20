@@ -10,3 +10,14 @@ services:
       - "environment=development"
       - "release=beta"
       - "feature=debug-mode"
+
+  db:
+    image: mysql:8.0
+    container_name: ${STACK_NAME}_db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: api_db
+      MYSQL_USER: api_user
+      MYSQL_PASSWORD: api_pass
+    labels:
+      - "type=database"
