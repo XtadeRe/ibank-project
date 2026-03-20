@@ -2,10 +2,11 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-COPY ../../frontend/package*.json ./
+COPY frontend/package*.json ./
 RUN npm install
 
-COPY ../../frontend/ ./
+# Копируем весь код фронтенда
+COPY frontend/ ./
 
 RUN npm run build
 RUN npm install -g serve
