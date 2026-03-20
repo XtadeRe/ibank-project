@@ -1,33 +1,12 @@
 version: '3.8'
 
 services:
-  web:
-    image: nginx:alpine
-    container_name: ${STACK_NAME}_web
-    ports:
-      - "80"
-      - "443"  # В develop добавили HTTPS
-    labels:
-      - "version=develop"
-      - "branch=develop"
-    environment:
-      - NGINX_ENTRYPOINT_QUIET_LOGS=1
-
   app:
-    image: nginx:alpine
+    image: php:8.2-fpm
     container_name: ${STACK_NAME}_app
     labels:
-      - "version=develop"
+      - "version=2.0.0-beta"
       - "branch=develop"
-
-  db:
-    image: mysql:8.0
-    container_name: ${STACK_NAME}_db
-    environment:
-      MYSQL_ROOT_PASSWORD: develop_password
-      MYSQL_DATABASE: develop_db
-      MYSQL_USER: developer
-      MYSQL_PASSWORD: dev_pass
-    labels:
-      - "version=develop"
-      - "branch=develop"
+      - "environment=development"
+      - "release=beta"
+      - "feature=debug-mode"
