@@ -1,19 +1,6 @@
 version: '3.8'
 
 services:
-  web:
-    image: nginx:latest
-    container_name: ${STACK_NAME}_web
-    ports:
-      - "80"
-      - "443"
-    labels:
-      - "version=2.0.0-beta"
-      - "branch=develop"
-      - "environment=development"
-      - "release=beta"
-      - "feature=debug-mode"
-
   app:
     image: php:8.2-fpm
     container_name: ${STACK_NAME}_app
