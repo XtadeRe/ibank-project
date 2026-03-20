@@ -1,25 +1,8 @@
 services:
-  # Веб-сервер (nginx)
-  webserver:
-    image: nginx:alpine
-    container_name: ${STACK_NAME}_webserver
-    ports:
-      - "${WEB_PORT:-80}:80"
-    volumes:
-      - ./backend:/var/www/html
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-    depends_on:
-      - app
-      - frontend
-    networks:
-      - app-network
-    labels:
-      - "type=webserver"
-
   # Backend (Laravel PHP-FPM)
   app:
     build:
-      context: ./backend
+      context: ./docker/php
       dockerfile: Dockerfile
     container_name: ${STACK_NAME}_app
     volumes:
@@ -53,18 +36,16 @@ services:
     labels:
       - "type=database"
 
-  # Frontend (React)
+  # Frontend (React) - используем готовый образ
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: node:18-alpine
     container_name: ${STACK_NAME}_frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
-    environment:
-      - REACT_APP_API_URL=http://localhost:${WEB_PORT:-80}/api
-    depends_on:
-      - app
+    command: sh -c "npm install && npm start"
     networks:
       - app-network
     labels:
