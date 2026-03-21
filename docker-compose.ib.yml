@@ -1,5 +1,4 @@
 services:
-  # Веб-сервер (nginx)
   webserver:
     image: nginx:alpine
     container_name: ${STACK_NAME}_webserver
@@ -11,14 +10,13 @@ services:
     depends_on:
       - php
     networks:
-      - php-network
+      - app-network
 
-  # Backend (Laravel PHP-FPM)
   php:
     build:
       context: ./docker/php
       dockerfile: Dockerfile
-    container_name: ${STACK_NAME}_app
+    container_name: ${STACK_NAME}_php
     volumes:
       - ./backend:/var/www/html
     environment:
@@ -30,9 +28,8 @@ services:
     depends_on:
       - db
     networks:
-      - php-network
+      - app-network
 
-  # База данных
   db:
     image: mysql:8.0
     container_name: ${STACK_NAME}_db
@@ -44,9 +41,8 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     networks:
-      - php-network
+      - app-network
 
-  # Frontend (React)
   frontend:
     build:
       context: ./frontend
@@ -59,10 +55,10 @@ services:
     depends_on:
       - php
     networks:
-      - php-network
+      - app-network
 
 networks:
-  php-network:
+  app-network:
     driver: bridge
 
 volumes:
