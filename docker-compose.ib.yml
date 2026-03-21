@@ -49,7 +49,7 @@ services:
   # Frontend (React)
   frontend:
     build:
-      context: ./docker/frontend
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: ${STACK_NAME}_frontend
     ports:
