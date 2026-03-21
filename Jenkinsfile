@@ -22,7 +22,7 @@ pipeline {
         stage('Validate') {
             steps {
                 script {
-                    def composeFile = params.stack_type == 'full' ? 'docker-compose.yml' : 'docker-compose.ib.yml'
+                    def composeFile = params.stack_type == 'full' ? 'docker-compose.ib.yml' : 'docker-compose.yml'
                     if (fileExists(composeFile)) {
                         echo "✅ ${composeFile} found"
                     } else {
