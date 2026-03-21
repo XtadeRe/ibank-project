@@ -53,9 +53,24 @@ pipeline {
                 }
             }
         }
+        
+        stage('Start Health Monitoring') {
+            steps {
+                script {
+                    sh """
+                        curl -X POST ${LARAVEL_API}/api/sandboxes/check-all \\
+                            -H "Content-Type: application/json"
+                    """
+                    echo "Автоматическая проверка запущена"
+                }
+            }
+        }
     }
     
     post {
+        success {
+            echo "Сборка успешно завершена"
+        }
         failure {
             sh """
                 curl -X POST ${LARAVEL_API}/api/jenkins/webhook \\
