@@ -229,7 +229,7 @@ function ContainerList() {
                                     <Box key={container.id} sx={{ ml: 2, mb: 1, width: 1000, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                                         <Box display="flex" justifyContent="space-between">
                                             <Typography variant="body3">
-                                                <strong>{container.name.replace(`${stack.name} `)}:</strong> {container.image}
+                                                <strong>{container.name.replace(`${stack.name}_`, '')}:</strong> {container.image}
                                             </Typography>
                                             <Chip
                                                 label={getStatusText(container.state)}
