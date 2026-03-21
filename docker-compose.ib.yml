@@ -14,7 +14,7 @@ services:
       - app-network
 
   # Backend (Laravel PHP-FPM)
-  app:
+  php:
     build:
       context: ./docker/php
       dockerfile: Dockerfile
