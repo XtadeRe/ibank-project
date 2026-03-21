@@ -11,7 +11,7 @@ services:
     depends_on:
       - php
     networks:
-      - app-network
+      - php-network
 
   # Backend (Laravel PHP-FPM)
   php:
@@ -30,7 +30,7 @@ services:
     depends_on:
       - db
     networks:
-      - app-network
+      - php-network
 
   # База данных
   db:
@@ -44,7 +44,7 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     networks:
-      - app-network
+      - php-network
 
   # Frontend (React)
   frontend:
@@ -57,12 +57,12 @@ services:
     environment:
       - REACT_APP_API_URL=http://localhost:${WEB_PORT:-80}/api
     depends_on:
-      - app
+      - php
     networks:
-      - app-network
+      - php-network
 
 networks:
-  app-network:
+  php-network:
     driver: bridge
 
 volumes:
