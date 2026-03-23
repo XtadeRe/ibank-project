@@ -1,12 +1,18 @@
-version: '3.8'
-
 services:
-  app:
-    image: php:8.2-fpm
-    container_name: ${STACK_NAME}_app
-    labels:
-      - "version=2.0.0-beta"
-      - "branch=develop"
-      - "environment=development"
-      - "release=beta"
-      - "feature=debug-mode"
+  php:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    container_name: ${STACK_NAME}_php
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_NAME}
+      - DB_USERNAME=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      - db
+    networks:
+      - app-network
