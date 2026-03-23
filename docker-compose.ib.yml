@@ -20,26 +20,11 @@ services:
     volumes:
       - ./backend:/var/www/html
     environment:
-      - DB_HOST=db
+      - DB_HOST=host.docker.internal
       - DB_PORT=3306
-      - DB_DATABASE=${DB_NAME}
-      - DB_USERNAME=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-    depends_on:
-      - db
-    networks:
-      - app-network
-
-  db:
-    image: mysql:8.0
-    container_name: ${STACK_NAME}_db
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - db_data:/var/lib/mysql
+      - DB_DATABASE=sandbox
+      - DB_USERNAME=root
+      - DB_PASSWORD=
     networks:
       - app-network
 
@@ -49,7 +34,7 @@ services:
       dockerfile: docker/frontend/Dockerfile
     container_name: ${STACK_NAME}_frontend
     ports:
-      - "${FRONTEND_PORT:-3100-3200}:3000"
+      - "${FRONTEND_PORT:-3200-3300}:3000"
     environment:
       - REACT_APP_API_URL=http://localhost:${WEB_PORT}/api
     depends_on:
@@ -60,6 +45,3 @@ services:
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  db_data:
