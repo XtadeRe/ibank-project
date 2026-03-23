@@ -20,14 +20,11 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Копируем composer.json и composer.lock
-COPY backend/composer.json backend/composer.lock ./
-
-# Устанавливаем зависимости (это происходит при сборке!)
-RUN composer install --no-interaction --no-progress --optimize-autoloader
-
-# Копируем остальной код
+# Копируем ВЕСЬ код сразу
 COPY backend/ ./
+
+# Устанавливаем зависимости (теперь artisan существует!)
+RUN composer install --no-interaction --no-progress --optimize-autoloader
 
 # Создаем папки для кэша и логов
 RUN mkdir -p storage/framework/cache \
@@ -38,8 +35,8 @@ RUN mkdir -p storage/framework/cache \
     && chmod -R 775 storage \
     && chmod -R 775 bootstrap/cache
 
-# Генерируем ключ приложения
-RUN php artisan key:generate --no-interaction
+# Генерируем ключ приложения (только если .env существует)
+RUN if [ -f .env ]; then php artisan key:generate --no-interaction; fi
 
 EXPOSE 9000
 
