@@ -1,5 +1,5 @@
 services:
-    db:
+  db:
     image: mysql:8.0
     container_name: ${STACK_NAME}_db
     environment:
@@ -9,6 +9,10 @@ services:
       - db_data:/var/lib/mysql
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
 
   webserver:
     image: nginx:alpine
@@ -34,8 +38,8 @@ services:
       - DB_HOST=db
       - DB_PORT=3306
       - DB_DATABASE=sandbox
-      - DB_USERNAME=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_USERNAME=root
+      - DB_PASSWORD=
     depends_on:
       db:
         condition: service_healthy
