@@ -21,18 +21,16 @@ WORKDIR /var/www/html
 # Копируем ВЕСЬ код (vendor уже есть в репозитории)
 COPY backend/ ./
 
-# Копируем entrypoint скрипт
-COPY docker/php/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
-RUN chmod +x /usr/local/bin/docker-entrypoint
-
 # Создаем папки для кэша и логов
 RUN mkdir -p storage/framework/cache \
     storage/framework/sessions \
     storage/framework/views \
     storage/logs \
     bootstrap/cache \
-    && chmod -R 775 storage \
-    && chmod -R 775 bootstrap/cache
+    && chmod -R 777 storage \
+    && chmod -R 777 bootstrap/cache \
+    && chown -R www-data:www-data storage \
+    && chown -R www-data:www-data bootstrap/cache
 
 EXPOSE 9000
 
