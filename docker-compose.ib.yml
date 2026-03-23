@@ -1,4 +1,21 @@
 services:
+  db:
+    image: mysql:8.0
+    container_name: ${STACK_NAME}_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: sandbox
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
   webserver:
     image: nginx:alpine
     container_name: ${STACK_NAME}_webserver
@@ -20,11 +37,14 @@ services:
     volumes:
       - ./backend:/var/www/html
     environment:
-      - DB_HOST=host.docker.internal
+      - DB_HOST=db
       - DB_PORT=3306
       - DB_DATABASE=sandbox
-      - DB_USERNAME=root
-      - DB_PASSWORD=
+      - DB_USERNAME=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - app-network
 
@@ -45,3 +65,6 @@ services:
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  db_data:
