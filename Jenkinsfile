@@ -34,43 +34,6 @@ pipeline {
             }
         }
         
-        stage('Setup Docker') {
-            steps {
-                script {
-                    echo "🐳 Setting up Docker..."
-                    
-                    // Проверяем наличие docker
-                    def hasDocker = sh(
-                        script: "command -v docker >/dev/null 2>&1 && echo 'yes' || echo 'no'",
-                        returnStdout: true
-                    ).trim()
-                    
-                    if (hasDocker == 'no') {
-                        echo "Installing Docker CLI..."
-                        sh """
-                            apt-get update
-                            apt-get install -y curl
-                            curl -fsSL https://get.docker.com -o get-docker.sh
-                            sh get-docker.sh --version 20.10
-                        """
-                    }
-                    
-                    // Проверяем доступ к Docker daemon
-                    def dockerVersion = sh(
-                        script: "docker version --format '{{.Server.Version}}' 2>/dev/null || echo 'not available'",
-                        returnStdout: true
-                    ).trim()
-                    
-                    if (dockerVersion != 'not available') {
-                        echo "✅ Docker daemon available (version: ${dockerVersion})"
-                    } else {
-                        echo "⚠️ Docker daemon not accessible, some checks will be skipped"
-                        env.SKIP_DOCKER_CHECKS = 'true'
-                    }
-                }
-            }
-        }
-        
         stage('Validate Docker Agent') {
             steps {
                 script {
@@ -134,41 +97,12 @@ pipeline {
             }
         }
         
-        stage('Wait for Services') {
-            when {
-                expression { env.WEB_PORT != null }
-            }
+        stage('Wait a moment') {
             steps {
                 script {
                     echo "⏳ Waiting for services to be ready..."
                     sleep(time: 10, unit: 'SECONDS')
-                    
-                    if (env.SKIP_DOCKER_CHECKS != 'true') {
-                        def maxAttempts = 30
-                        def ready = false
-                        
-                        for (int i = 1; i <= maxAttempts; i++) {
-                            def runningContainers = sh(
-                                script: "docker ps --filter name=${env.STACK_NAME} --format '{{.Names}}' | wc -l",
-                                returnStdout: true
-                            ).trim()
-                            
-                            if (runningContainers.toInteger() > 0) {
-                                echo "✅ ${runningContainers} containers are running"
-                                ready = true
-                                break
-                            }
-                            
-                            echo "Attempt ${i}/${maxAttempts}: Waiting for containers..."
-                            sleep(time: 2, unit: 'SECONDS')
-                        }
-                        
-                        if (!ready) {
-                            echo "⚠️ Could not verify containers, but deployment seems successful"
-                        }
-                    } else {
-                        echo "⚠️ Skipping container check (Docker not available)"
-                    }
+                    echo "✅ Wait completed"
                 }
             }
         }
@@ -190,7 +124,7 @@ ${params.stack_type == 'full' && env.WEB_PORT ? """
 ║ • Web:      http://localhost:${env.WEB_PORT}              ║
 ║ • Frontend: http://localhost:${env.FRONTEND_PORT}         ║
 ║ • API:      http://localhost:${env.WEB_PORT}/api          ║
-""" : env.API_PORT ? """
+""" : params.stack_type == 'api' && env.API_PORT ? """
 ║ • API:      http://localhost:${env.API_PORT}              ║
 """ : """
 ║ • Check Docker Agent logs for URLs                        ║
@@ -211,7 +145,14 @@ ${params.stack_type == 'full' && env.WEB_PORT ? """
         }
         
         failure {
-            echo "❌ Build ${env.BUILD_NUMBER} failed!"
+            script {
+                echo "❌ Build ${env.BUILD_NUMBER} failed!"
+                // Пытаемся остановить стек при ошибке
+                sh """
+                    echo "Cleaning up..."
+                    curl -X POST ${DOCKER_AGENT_URL}/api/stacks/${env.STACK_NAME}/down || true
+                """
+            }
         }
     }
 }
