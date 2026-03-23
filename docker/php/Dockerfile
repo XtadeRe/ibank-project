@@ -20,17 +20,16 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Копируем код
+# Копируем composer.json и composer.lock
+COPY backend/composer.json backend/composer.lock ./
+
+# Устанавливаем зависимости (это происходит при сборке!)
+RUN composer install --no-interaction --no-progress --optimize-autoloader
+
+# Копируем остальной код
 COPY backend/ ./
 
-# Устанавливаем зависимости только если есть composer.json
-RUN if [ -f composer.json ]; then \
-        composer install --no-interaction --no-progress --optimize-autoloader || echo "Composer install failed, continuing..."; \
-    else \
-        echo "No composer.json found, skipping composer install"; \
-    fi
-
-# Создаем необходимые папки
+# Создаем папки для кэша и логов
 RUN mkdir -p storage/framework/cache \
     storage/framework/sessions \
     storage/framework/views \
@@ -38,6 +37,9 @@ RUN mkdir -p storage/framework/cache \
     bootstrap/cache \
     && chmod -R 775 storage \
     && chmod -R 775 bootstrap/cache
+
+# Генерируем ключ приложения
+RUN php artisan key:generate --no-interaction
 
 EXPOSE 9000
 
