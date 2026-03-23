@@ -22,7 +22,7 @@ services:
     volumes:
       - ./backend:/var/www/html
     ports:
-      - "${WEB_PORT:-8080-8180}:8000"
+      - "${WEB_PORT}:8000"
     command: php artisan serve --host=0.0.0.0 --port=8000
     environment:
       - DB_HOST=db
@@ -42,7 +42,7 @@ services:
       dockerfile: docker/frontend/Dockerfile
     container_name: ${STACK_NAME}_frontend
     ports:
-      - "${FRONTEND_PORT:-3200-3300}:3000"
+      - "${FRONTEND_PORT}:3000"
     environment:
       - REACT_APP_API_URL=http://localhost:${WEB_PORT}/api
     depends_on:
