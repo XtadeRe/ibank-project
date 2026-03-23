@@ -28,27 +28,39 @@ class DockerAgentService
     public function startStack($name, $gitBranch, $stackType)
     {
         try {
-            Log::info('Начинаем создание стека', [
+            Log::info('Начинаем создание стека через Docker Agent', [
                 'name' => $name,
                 'branch' => $gitBranch,
-                'type' => $stackType
+                'type' => $stackType,
+                'url' => $this->agentUrl
             ]);
 
-            $composeFile = $this->getComposeContent($gitBranch, $stackType, $name);
-
-            Log::info('Отправляю compose файл в Docker Agent', [
-                'length' => strlen($composeFile)
-            ]);
-
-            $response = Http::timeout(60)
+            // Отправляем запрос в Docker Agent (server.js)
+            $response = Http::timeout(120)
                 ->post($this->agentUrl . '/api/stacks/' . $name . '/up', [
-                    'composeFile' => $composeFile,
+                    'git_branch' => $gitBranch,
                     'stackType' => $stackType
                 ]);
 
-            return [
+            $result = $response->json();
+
+            Log::info('Ответ от Docker Agent', [
                 'success' => $response->successful(),
-                'data' => $response->json()
+                'response' => $result
+            ]);
+
+            if ($response->successful() && isset($result['success']) && $result['success']) {
+                return [
+                    'success' => true,
+                    'data' => $result,
+                    'ports' => $result['ports'] ?? null,
+                    'urls' => $result['urls'] ?? null
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => $result['error'] ?? 'Неизвестная ошибка'
             ];
 
         } catch (\Exception $e) {
@@ -60,119 +72,56 @@ class DockerAgentService
         }
     }
 
-    private function getComposeContent($gitBranch, $stackType, $name)
-    {
-        $repoUrl = 'https://raw.githubusercontent.com/XtadeRe/ibank-project/' . $gitBranch . '/';
-
-        switch ($stackType) {
-            case 'full':
-                $file = 'docker-compose.ib.yml';
-                break;
-            case 'api':
-                $file = 'docker-compose.api.yml';
-                break;
-            case 'mysql':
-                $file = 'docker-compose.yml';
-                break;
-            default:
-                $file = 'docker-compose.ib.yml';
-        }
-
-        Log::info('Загрузка compose файла', [
-            'branch' => $gitBranch,
-            'type' => $stackType,
-            'file' => $file,
-            'url' => $repoUrl . $file
-        ]);
-
-        $response = Http::get($repoUrl . $file);
-
-        Log::info('Результат загрузки', [
-            'status' => $response->status(),
-            'success' => $response->successful()
-        ]);
-
-        if (!$response->successful()) {
-            throw new \Exception("Не удалось загрузить compose файл {$file} для ветки {$gitBranch}. Status: " . $response->status());
-        }
-
-        $content = $response->body();
-
-        Log::info('Compose файл загружен', [
-            'length' => strlen($content),
-            'preview' => substr($content, 0, 200)
-        ]);
-
-        $content = str_replace(
-            ['${STACK_NAME}', '${DB_NAME}', '${DB_USER}', '${DB_PASSWORD}', '${DB_ROOT_PASSWORD}'],
-            [$name, 'sandbox', 'user', 'password', 'rootpassword'],
-            $content
-        );
-
-        return $content;
-    }
-
     public function restartContainer($containerId)
     {
         try {
             $response = Http::timeout(30)->post($this->agentUrl . '/api/containers/' . $containerId . '/restart');
-
-            return [
-                'success' => $response->successful(),
-                'data' => $response->json()
-            ];
+            return $response->json();
         } catch (\Exception $e) {
             Log::error('Ошибка перезапуска контейнера: ' . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
+            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
     public function getContainers()
     {
-        $response = Http::get($this->agentUrl . '/api/containers');
-        return $response->json();
+        try {
+            $response = Http::timeout(10)->get($this->agentUrl . '/api/containers');
+            return $response->json() ?? [];
+        } catch (\Exception $e) {
+            Log::error('Ошибка получения контейнеров: ' . $e->getMessage());
+            return [];
+        }
     }
 
     public function deleteStack($name)
     {
         try {
             $response = Http::timeout(30)->post($this->agentUrl . '/api/stacks/' . $name . '/down');
-
             return $response->json();
         } catch (\Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
-    public function checkBranchExists($gitBranch)
-    {
-        try {
-            $url = 'https://raw.githubusercontent.com/XtadeRe/ibank-project/' . $gitBranch . '/docker-compose.yml';
-            $response = Http::timeout(5)->head($url);
-            return $response->successful();
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-
     public function getBranches()
     {
         try {
-            $response = Http::get('https://api.github.com/repos/XtadeRe/ibank-project/branches');
+            // Получаем ветки из GitHub API
+            $response = Http::timeout(10)->get('https://api.github.com/repos/XtadeRe/ibank-project/branches');
 
-            if (!$response->successful()) {
-                return ['master', 'develop'];
+            if ($response->successful()) {
+                $branches = array_map(function($branch) {
+                    return $branch['name'];
+                }, $response->json());
+                return $branches;
             }
 
-            $branches = array_map(function($branch) {
-                return $branch['name'];
-            }, $response->json());
+            // Fallback на стандартные ветки
+            return ['master', 'develop'];
 
-            return !empty($branches) ? $branches : ['master', 'develop'];
         } catch (\Exception $e) {
+            Log::error('Ошибка получения веток: ' . $e->getMessage());
             return ['master', 'develop'];
         }
     }
@@ -181,13 +130,16 @@ class DockerAgentService
     {
         try {
             $allContainers = $this->getContainers();
+            if (!is_array($allContainers)) {
+                return [];
+            }
 
             $stackContainers = array_filter($allContainers, function($container) use ($stackName) {
-                return isset($container['name']) && strpos($container['name'], $stackName . '_') === 0;
+                $containerName = is_array($container) ? ($container['name'] ?? '') : '';
+                return strpos($containerName, $stackName . '_') === 0;
             });
 
             return array_values($stackContainers);
-
         } catch (\Exception $e) {
             Log::error('Ошибка получения контейнеров стека: ' . $e->getMessage());
             return [];

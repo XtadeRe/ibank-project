@@ -42,3 +42,4 @@ Route::post('/sandboxes/{id}/check-health', [SandboxController::class, 'checkHea
 Route::post('/jenkins/deploy', [JenkinsController::class, 'deploy']);
 Route::get('/jenkins/jobs', [JenkinsController::class, 'getJobs']);
 Route::post('/jenkins/webhook', [JenkinsController::class, 'webhook']);
+Route::get('/git-branches', [JenkinsController::class, 'getBranches']);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
     Container, Typography, Paper, TextField, Button,
     FormControl, InputLabel, Select, MenuItem,
@@ -7,15 +7,17 @@ import {
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import BuildIcon from '@mui/icons-material/Build';
+import { ApiContext } from '../App';
 
 function CreateStack() {
     const navigate = useNavigate();
+    const API_URL = useContext(ApiContext);
 
     // Состояния для формы
     const [formData, setFormData] = useState({
         name: '',
         git_branch: '',
-        stack_type: '',
+        stack_type: 'full',
         machine_ip: '127.0.0.1'
     });
 
@@ -26,9 +28,8 @@ function CreateStack() {
 
     // Состояния для отправки
     const [submitting, setSubmitting] = useState(false);
-    const [jenkinsSubmitting, setJenkinsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState('');
-    const [jenkinsMessage, setJenkinsMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
 
     // Загрузка веток при монтировании
     useEffect(() => {
@@ -39,7 +40,7 @@ function CreateStack() {
     const fetchBranches = async () => {
         try {
             setLoadingBranches(true);
-            const response = await axios.get('http://localhost:8000/api/git-branches');
+            const response = await axios.get(`${API_URL}/git-branches`);
             setBranches(response.data.branches || []);
             setBranchesError('');
         } catch (err) {
@@ -59,75 +60,51 @@ function CreateStack() {
         }));
     };
 
-    // Отправка формы (обычное создание)
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    // Создание стека через Jenkins
+    const handleCreateStack = async () => {
+        if (!formData.name) {
+            setSubmitError('Введите имя стека');
+            return;
+        }
 
-        if (!formData.name || !formData.git_branch) {
-            setSubmitError('Заполните все обязательные поля');
+        if (!formData.git_branch) {
+            setSubmitError('Выберите ветку Git');
             return;
         }
 
         try {
             setSubmitting(true);
             setSubmitError('');
-            setJenkinsMessage('');
+            setSuccessMessage('');
 
-            await axios.post('http://localhost:8000/api/sandboxes', formData);
-            navigate('/');
-        } catch (err) {
-            setSubmitError(err.response?.data?.message || 'Ошибка создания стека');
-            console.error(err);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    // Запуск сборки в Jenkins
-    // Запуск сборки в Jenkins (асинхронно)
-    const handleJenkinsDeploy = async () => {
-        if (!formData.git_branch) {
-            setSubmitError('Выберите ветку Git');
-            return;
-        }
-
-        if (!formData.name) {
-            setSubmitError('Введите имя стека');
-            return;
-        }
-
-        try {
-            setJenkinsSubmitting(true);
-            setJenkinsMessage('');
-            setSubmitError('');
-
-            const response = await axios.post('http://localhost:8000/api/jenkins/deploy', {
+            // Отправляем запрос в Jenkins
+            const response = await axios.post(`${API_URL}/jenkins/deploy`, {
                 branch: formData.git_branch,
-                stack_type: formData.stack_type || 'full',
+                stack_type: formData.stack_type,
                 stack_name: formData.name,
                 machine_ip: formData.machine_ip
-            }, {
-                timeout: 5000
             });
 
-            setJenkinsMessage(`Сборка #${response.data.build_number} запущена в Jenkins`);
+            setSuccessMessage(`Стек "${formData.name}" успешно создан! Сборка #${response.data.build_number} запущена.`);
 
+            // Очищаем форму
+            setFormData({
+                name: '',
+                git_branch: '',
+                stack_type: 'full',
+                machine_ip: '127.0.0.1'
+            });
+
+            // Через 3 секунды переходим на главную
             setTimeout(() => {
-                setFormData({
-                    name: '',
-                    git_branch: '',
-                    stack_type: '',
-                    machine_ip: '127.0.0.1'
-                });
-                setJenkinsMessage('');
+                navigate('/');
             }, 3000);
 
         } catch (err) {
-            // Если ошибка, показываем сообщение
-            setSubmitError(err.response?.data?.error || 'Ошибка запуска сборки');
+            setSubmitError(err.response?.data?.error || 'Ошибка создания стека');
             console.error(err);
         } finally {
-            setJenkinsSubmitting(false);
+            setSubmitting(false);
         }
     };
 
@@ -139,94 +116,92 @@ function CreateStack() {
                 </Typography>
 
                 {submitError && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
+                    <Alert severity="error" sx={{ mb: 2 }} onClose={() => setSubmitError('')}>
                         {submitError}
                     </Alert>
                 )}
 
-                {jenkinsMessage && (
-                    <Alert severity="success" sx={{ mb: 2 }}>
-                        {jenkinsMessage}
+                {successMessage && (
+                    <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage('')}>
+                        {successMessage}
                     </Alert>
                 )}
 
-                <form onSubmit={handleSubmit}>
-                    <TextField
-                        fullWidth
-                        label="Имя стека"
-                        name="name"
-                        value={formData.name}
+                <TextField
+                    fullWidth
+                    label="Имя стека"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    margin="normal"
+                    variant="outlined"
+                    required
+                    disabled={submitting}
+                    helperText="Только латинские буквы, цифры и дефис"
+                />
+
+                <FormControl fullWidth margin="normal" required>
+                    <InputLabel>Ветка Git</InputLabel>
+                    <Select
+                        name="git_branch"
+                        value={formData.git_branch}
                         onChange={handleChange}
-                        margin="normal"
-                        variant="outlined"
-                        required
-                        disabled={submitting || jenkinsSubmitting}
-                    />
-
-                    <FormControl fullWidth margin="normal" required>
-                        <InputLabel>Ветка Git</InputLabel>
-                        <Select
-                            name="git_branch"
-                            value={formData.git_branch}
-                            onChange={handleChange}
-                            label="Ветка Git"
-                            disabled={loadingBranches || submitting || jenkinsSubmitting}
-                        >
-                            <MenuItem value="">
-                                <em>Выберите ветку</em>
+                        label="Ветка Git"
+                        disabled={loadingBranches || submitting}
+                    >
+                        <MenuItem value="">
+                            <em>Выберите ветку</em>
+                        </MenuItem>
+                        {loadingBranches ? (
+                            <MenuItem disabled>
+                                <CircularProgress size={20} /> Загрузка...
                             </MenuItem>
-                            {loadingBranches ? (
-                                <MenuItem disabled>
-                                    <CircularProgress size={20} /> Загрузка...
+                        ) : branchesError ? (
+                            <MenuItem disabled>
+                                Ошибка загрузки
+                            </MenuItem>
+                        ) : (
+                            branches.map((branch) => (
+                                <MenuItem key={branch} value={branch}>
+                                    {branch}
                                 </MenuItem>
-                            ) : branchesError ? (
-                                <MenuItem disabled>
-                                    Ошибка загрузки
-                                </MenuItem>
-                            ) : (
-                                branches.map((branch) => (
-                                    <MenuItem key={branch} value={branch}>
-                                        {branch}
-                                    </MenuItem>
-                                ))
-                            )}
-                        </Select>
-                        {branchesError && (
-                            <Typography color="error" variant="caption" sx={{ mt: 1 }}>
-                                {branchesError}
-                            </Typography>
+                            ))
                         )}
-                    </FormControl>
+                    </Select>
+                    {branchesError && (
+                        <Typography color="error" variant="caption" sx={{ mt: 1 }}>
+                            {branchesError}
+                        </Typography>
+                    )}
+                </FormControl>
 
-                    <FormControl fullWidth margin="normal">
-                        <InputLabel>Тип стека</InputLabel>
-                        <Select
-                            name="stack_type"
-                            value={formData.stack_type}
-                            onChange={handleChange}
-                            label="Тип стека"
-                            disabled={submitting || jenkinsSubmitting}
-                        >
-                            <MenuItem value="full">Интернет банк</MenuItem>
-                            <MenuItem value="api">API</MenuItem>
-                            <MenuItem value="mysql">База данных</MenuItem>
-                        </Select>
-                    </FormControl>
+                <FormControl fullWidth margin="normal">
+                    <InputLabel>Тип стека</InputLabel>
+                    <Select
+                        name="stack_type"
+                        value={formData.stack_type}
+                        onChange={handleChange}
+                        label="Тип стека"
+                        disabled={submitting}
+                    >
+                        <MenuItem value="full">Полный стек (Laravel + React)</MenuItem>
+                        <MenuItem value="api">Только API</MenuItem>
+                    </Select>
+                </FormControl>
 
-                    <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                        <Button
-                            variant="outlined"
-                            color="secondary"
-                            size="large"
-                            onClick={handleJenkinsDeploy}
-                            disabled={jenkinsSubmitting || !formData.git_branch}
-                            startIcon={<BuildIcon />}
-                            sx={{ flex: 1 }}
-                        >
-                            {jenkinsSubmitting ? <CircularProgress size={24} /> : 'Создать стек'}
-                        </Button>
-                    </Box>
-                </form>
+                <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        size="large"
+                        onClick={handleCreateStack}
+                        disabled={submitting || !formData.name || !formData.git_branch}
+                        startIcon={<BuildIcon />}
+                        sx={{ flex: 1 }}
+                    >
+                        {submitting ? <CircularProgress size={24} /> : 'Создать стек'}
+                    </Button>
+                </Box>
             </Paper>
         </Container>
     );
