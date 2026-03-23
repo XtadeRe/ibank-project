@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import {
     Box,
     Card,
@@ -25,11 +25,16 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 import axios from 'axios';
 import UptimeChart from './UptimeChart';
+import { ApiContext } from '../App';
+
 function ContainerList() {
     const [stacks, setStacks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [deleteDialog, setDeleteDialog] = useState({ open: false, stackId: null, stackName: '' });
+
+    // Получаем API URL из контекста
+    const API_URL = useContext(ApiContext);
 
     // Загрузка списка стеков из БД и контейнеров из Docker
     const fetchStacks = async () => {
@@ -37,11 +42,11 @@ function ContainerList() {
             setLoading(true);
 
             // 1. Получаем все стеки из БД
-            const stacksResponse = await axios.get('http://localhost:8000/api/sandboxes');
+            const stacksResponse = await axios.get(`${API_URL}/sandboxes`);
             const stacksFromDb = stacksResponse.data.data || [];
 
             // 2. Получаем все контейнеры из Docker
-            const containersResponse = await axios.get('http://localhost:8000/api/docker/containers');
+            const containersResponse = await axios.get(`${API_URL}/docker/containers`);
             const allContainers = containersResponse.data.containers || [];
 
             // 3. Группируем контейнеры по стекам
@@ -74,7 +79,7 @@ function ContainerList() {
     // Запуск стека
     const startStack = async (stackId) => {
         try {
-            await axios.post(`http://localhost:8000/api/sandboxes/${stackId}/start`);
+            await axios.post(`${API_URL}/sandboxes/${stackId}/start`);
             fetchStacks();
         } catch (err) {
             setError('Ошибка запуска стека');
@@ -85,7 +90,7 @@ function ContainerList() {
     // Проверка доступности стека
     const checkStackHealth = async (stackId) => {
         try {
-            const response = await axios.post(`http://localhost:8000/api/sandboxes/${stackId}/check-health`);
+            const response = await axios.post(`${API_URL}/sandboxes/${stackId}/check-health`);
 
             // Показываем уведомление о результате
             alert(response.data.message);
@@ -101,7 +106,7 @@ function ContainerList() {
     // Остановка стека
     const stopStack = async (stackId) => {
         try {
-            await axios.post(`http://localhost:8000/api/sandboxes/${stackId}/stop`);
+            await axios.post(`${API_URL}/sandboxes/${stackId}/stop`);
             fetchStacks();
         } catch (err) {
             setError('Ошибка остановки стека');
@@ -112,7 +117,7 @@ function ContainerList() {
     // Перезапуск стека (перезапускаем все контейнеры стека)
     const restartStack = async (stackId) => {
         try {
-            await axios.post(`http://localhost:8000/api/sandboxes/${stackId}/restart`);
+            await axios.post(`${API_URL}/sandboxes/${stackId}/restart`);
             fetchStacks();
         } catch (err) {
             setError('Ошибка перезапуска стека');
@@ -124,10 +129,10 @@ function ContainerList() {
     const deleteStack = async () => {
         try {
             // Удаляем через Docker API
-            await axios.post(`http://localhost:8000/api/docker/stacks/${deleteDialog.stackName}/delete`);
+            await axios.post(`${API_URL}/docker/stacks/${deleteDialog.stackName}/delete`);
 
             // Удаляем из БД
-            await axios.delete(`http://localhost:8000/api/sandboxes/${deleteDialog.stackId}`);
+            await axios.delete(`${API_URL}/sandboxes/${deleteDialog.stackId}`);
 
             setDeleteDialog({ open: false, stackId: null, stackName: '' });
             fetchStacks();
@@ -224,11 +229,14 @@ function ContainerList() {
                                         variant="outlined"
                                     />
                                 </Box>
+                                <Typography variant="h6" gutterBottom>
+                                    {stack.name}
+                                </Typography>
 
                                 {stack.containers.map(container => (
-                                    <Box key={container.id} sx={{ ml: 2, mb: 1, width: 1000, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                                    <Box key={container.id} sx={{ ml: 2, mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                                         <Box display="flex" justifyContent="space-between">
-                                            <Typography variant="body3">
+                                            <Typography variant="body2">
                                                 <strong>{container.name.replace(`${stack.name}_`, '')}:</strong> {container.image}
                                             </Typography>
                                             <Chip
@@ -240,13 +248,14 @@ function ContainerList() {
                                     </Box>
                                 ))}
                                 <Accordion sx={{ mt: 2 }}>
-                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                    <Typography>Статистика доступности</Typography>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <UptimeChart stackId={stack.id} stackName={stack.name} />
-                                </AccordionDetails>
-                            </Accordion>
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                        <Typography>Статистика доступности</Typography>
+                                    </AccordionSummary>
+                                    <AccordionDetails>
+                                        <UptimeChart stackId={stack.id} stackName={stack.name} />
+                                    </AccordionDetails>
+                                </Accordion>
+
                                 {/* Кнопки управления */}
                                 <Box display="flex" justifyContent="flex-end" mt={2}>
                                     <Button
@@ -261,7 +270,7 @@ function ContainerList() {
                                     <Button
                                         size="small"
                                         color="primary"
-                                        onClick={() => restartStack(stack.id, stack.name)}
+                                        onClick={() => restartStack(stack.id)}
                                         startIcon={<RestartAltIcon />}
                                         sx={{ mr: 1 }}
                                     >
@@ -281,7 +290,6 @@ function ContainerList() {
                                     </Button>
                                 </Box>
                             </CardContent>
-
                         </Card>
                     </Grid>
                 ))}
