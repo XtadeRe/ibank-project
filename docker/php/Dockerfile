@@ -9,19 +9,21 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     unzip \
+    netcat-openbsd \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Установка PHP расширений
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# Composer не нужен для runtime, только для разработки
-# COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
 WORKDIR /var/www/html
 
 # Копируем ВЕСЬ код (vendor уже есть в репозитории)
 COPY backend/ ./
+
+# Копируем entrypoint скрипт
+COPY docker/php/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
+RUN chmod +x /usr/local/bin/docker-entrypoint
 
 # Создаем папки для кэша и логов
 RUN mkdir -p storage/framework/cache \
@@ -32,9 +34,7 @@ RUN mkdir -p storage/framework/cache \
     && chmod -R 775 storage \
     && chmod -R 775 bootstrap/cache
 
-# Генерируем ключ приложения (будет выполнен при запуске, а не при сборке)
-# RUN php artisan key:generate --no-interaction
-
 EXPOSE 9000
 
+ENTRYPOINT ["docker-entrypoint"]
 CMD ["php-fpm"]
