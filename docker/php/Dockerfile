@@ -18,9 +18,6 @@ RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 # Установка Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Копируем php.ini
-COPY php.ini /usr/local/etc/php/conf.d/custom.ini
-
 # Устанавливаем рабочую директорию
 WORKDIR /var/www/html
 
