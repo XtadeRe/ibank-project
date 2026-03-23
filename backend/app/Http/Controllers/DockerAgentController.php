@@ -14,7 +14,8 @@ class DockerAgentController extends Controller
 
     public function __construct()
     {
-        $this->dockerAgent = new DockerAgentService('http://localhost:3001');
+        $dockerAgentUrl = env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001');
+        $this->dockerAgent = new DockerAgentService($dockerAgentUrl);
     }
 
     /**
