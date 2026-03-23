@@ -8,7 +8,7 @@ pipeline {
     }
     
     environment {
-        DOCKER_AGENT_URL = 'http://172.17.0.1:3001'
+        DOCKER_AGENT_URL = 'http://host.docker.internal:3001'
     }
     
     stages {
