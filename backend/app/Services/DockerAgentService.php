@@ -25,46 +25,27 @@ class DockerAgentService
         }
     }
 
-    public function startStack($name, $gitBranch, $stackType)
+    public function startStack($stackName, $gitBranch, $stackType)
     {
         try {
-            Log::info('Начинаем создание стека через Docker Agent', [
-                'name' => $name,
-                'branch' => $gitBranch,
-                'type' => $stackType,
-                'url' => $this->agentUrl
+            $response = Http::timeout(120)->post($this->baseUrl . '/api/stacks/' . $stackName . '/up', [
+                'git_branch' => $gitBranch,
+                'stackType' => $stackType
             ]);
 
-            // Отправляем запрос в Docker Agent (server.js)
-            $response = Http::timeout(120)
-                ->post($this->agentUrl . '/api/stacks/' . $name . '/up', [
-                    'git_branch' => $gitBranch,
-                    'stackType' => $stackType
-                ]);
-
-            $result = $response->json();
-
-            Log::info('Ответ от Docker Agent', [
-                'success' => $response->successful(),
-                'response' => $result
-            ]);
-
-            if ($response->successful() && isset($result['success']) && $result['success']) {
+            if ($response->successful()) {
+                $data = $response->json();
                 return [
                     'success' => true,
-                    'data' => $result,
-                    'ports' => $result['ports'] ?? null,
-                    'urls' => $result['urls'] ?? null
+                    'data' => $data
                 ];
             }
 
             return [
                 'success' => false,
-                'error' => $result['error'] ?? 'Неизвестная ошибка'
+                'error' => 'Failed to start stack: ' . $response->body()
             ];
-
         } catch (\Exception $e) {
-            Log::error('Ошибка запуска стека: ' . $e->getMessage());
             return [
                 'success' => false,
                 'error' => $e->getMessage()
@@ -94,13 +75,27 @@ class DockerAgentService
         }
     }
 
-    public function deleteStack($name)
+    public function deleteStack($stackName)
     {
         try {
-            $response = Http::timeout(30)->post($this->agentUrl . '/api/stacks/' . $name . '/down');
-            return $response->json();
+            $response = Http::timeout(30)->post($this->baseUrl . '/api/stacks/' . $stackName . '/delete');
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Failed to delete stack: ' . $response->body()
+            ];
         } catch (\Exception $e) {
-            return ['success' => false, 'error' => $e->getMessage()];
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
         }
     }
 

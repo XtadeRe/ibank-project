@@ -140,6 +140,7 @@ class SandboxController extends Controller
                 "Начало перезапуска стека {$sandbox->name}"
             );
 
+            // Удаляем стек (останавливаем контейнеры)
             $stopResult = $this->dockerAgent->deleteStack($sandbox->name);
 
             if (!($stopResult['success'] ?? false)) {
@@ -150,12 +151,14 @@ class SandboxController extends Controller
                 );
 
                 return response()->json([
-                    'message' => 'Не удалось остановить стек перед перезапуском'
+                    'message' => 'Не удалось остановить стек перед перезапуском',
+                    'error' => $stopResult['error'] ?? 'Unknown error'
                 ], 500);
             }
 
             sleep(2);
 
+            // Запускаем стек заново
             $startResult = $this->dockerAgent->startStack(
                 $sandbox->name,
                 $sandbox->git_branch,
@@ -204,7 +207,10 @@ class SandboxController extends Controller
                 );
             }
 
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json([
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
         }
     }
 
