@@ -25,27 +25,46 @@ class DockerAgentService
         }
     }
 
-    public function startStack($stackName, $gitBranch, $stackType)
+    public function startStack($name, $gitBranch, $stackType)
     {
         try {
-            $response = Http::timeout(120)->post($this->baseUrl . '/api/stacks/' . $stackName . '/up', [
-                'git_branch' => $gitBranch,
-                'stackType' => $stackType
+            Log::info('Начинаем создание стека через Docker Agent', [
+                'name' => $name,
+                'branch' => $gitBranch,
+                'type' => $stackType,
+                'url' => $this->agentUrl
             ]);
 
-            if ($response->successful()) {
-                $data = $response->json();
+            // Отправляем запрос в Docker Agent (server.js)
+            $response = Http::timeout(120)
+                ->post($this->agentUrl . '/api/stacks/' . $name . '/up', [
+                    'git_branch' => $gitBranch,
+                    'stackType' => $stackType
+                ]);
+
+            $result = $response->json();
+
+            Log::info('Ответ от Docker Agent', [
+                'success' => $response->successful(),
+                'response' => $result
+            ]);
+
+            if ($response->successful() && isset($result['success']) && $result['success']) {
                 return [
                     'success' => true,
-                    'data' => $data
+                    'data' => $result,
+                    'ports' => $result['ports'] ?? null,
+                    'urls' => $result['urls'] ?? null
                 ];
             }
 
             return [
                 'success' => false,
-                'error' => 'Failed to start stack: ' . $response->body()
+                'error' => $result['error'] ?? 'Неизвестная ошибка'
             ];
+
         } catch (\Exception $e) {
+            Log::error('Ошибка запуска стека: ' . $e->getMessage());
             return [
                 'success' => false,
                 'error' => $e->getMessage()
