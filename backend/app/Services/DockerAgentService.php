@@ -76,7 +76,26 @@ class DockerAgentService
     {
         try {
             $response = Http::timeout(30)->post($this->agentUrl . '/api/containers/' . $containerId . '/restart');
-            return $response->json();
+
+            $result = $response->json();
+
+            Log::info('Restart container response', [
+                'containerId' => $containerId,
+                'success' => $response->successful(),
+                'response' => $result
+            ]);
+
+            if ($response->successful() && isset($result['success']) && $result['success']) {
+                return [
+                    'success' => true,
+                    'data' => $result
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => $result['error'] ?? 'Unknown error'
+            ];
         } catch (\Exception $e) {
             Log::error('Ошибка перезапуска контейнера: ' . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
