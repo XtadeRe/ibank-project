@@ -11,7 +11,7 @@ class DockerAgentService
 
     public function __construct($agentUrl)
     {
-        $this->agentUrl = $agentUrl;
+        $this->agentUrl = env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001');
     }
 
     public function ping()

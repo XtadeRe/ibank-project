@@ -17,7 +17,7 @@ class SandboxController extends Controller
 
     public function __construct()
     {
-        $this->dockerAgent = new DockerAgentService('http://localhost:3001');
+        $this->dockerAgent = new DockerAgentService(env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001'));
     }
 
     /**
