@@ -35,20 +35,19 @@ function UptimeChart({ stackId, stackName }) {
 
     const fetchUptimeData = async () => {
         try {
-            // Для новых стеков используем имя, для старых - id
+            // Используем stackId (из БД) для запроса
             const identifier = stackId || stackName;
             const response = await axios.get(`${API_URL}/sandboxes/${identifier}/uptime`);
             setData(response.data);
             setError('');
         } catch (err) {
-            // Если нет данных в БД, показываем заглушку
+            console.error('Uptime fetch error:', err);
             if (err.response?.status === 404) {
                 setData(null);
                 setError('Статистика временно недоступна');
             } else {
                 setError('Ошибка загрузки статистики');
             }
-            console.error(err);
         } finally {
             setLoading(false);
         }

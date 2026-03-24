@@ -41,10 +41,21 @@ function ContainerList() {
         try {
             setLoading(true);
 
+            // Получаем список стеков из Docker Agent
             const response = await axios.get(`${API_URL}/stacks`);
 
             if (response.data.success) {
                 const stacksFromAgent = response.data.stacks || [];
+
+                // Получаем список стеков из БД для сопоставления id
+                const sandboxesResponse = await axios.get(`${API_URL}/sandboxes`);
+                const sandboxes = sandboxesResponse.data.data || [];
+
+                // Создаем маппинг имени стека на id из БД
+                const stackIdMap = {};
+                sandboxes.forEach(sandbox => {
+                    stackIdMap[sandbox.name] = sandbox.id;
+                });
 
                 const stacksWithContainers = await Promise.all(
                     stacksFromAgent.map(async (stack) => {
@@ -52,12 +63,14 @@ function ContainerList() {
                             const containersResponse = await axios.get(`${API_URL}/docker/stacks/${stack.name}/containers`);
                             return {
                                 ...stack,
+                                id: stackIdMap[stack.name] || stack.name, // Используем id из БД или имя как fallback
                                 containers: containersResponse.data.containers || []
                             };
                         } catch (err) {
                             console.error(`Error fetching containers for ${stack.name}:`, err);
                             return {
                                 ...stack,
+                                id: stackIdMap[stack.name] || stack.name,
                                 containers: []
                             };
                         }
@@ -253,7 +266,10 @@ function ContainerList() {
                                         <Typography>Статистика доступности</Typography>
                                     </AccordionSummary>
                                     <AccordionDetails>
-                                        <UptimeChart stackName={stack.name} />
+                                        <UptimeChart
+                                            stackId={stack.id}
+                                            stackName={stack.name}
+                                        />
                                     </AccordionDetails>
                                 </Accordion>
 
