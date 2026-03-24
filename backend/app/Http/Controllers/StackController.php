@@ -20,7 +20,7 @@ class StackController extends Controller
     public function index()
     {
         try {
-            $response = Http::get($this->dockerAgentUrl . '/api/stacks');
+            $response = Http::timeout(10)->get($this->dockerAgentUrl . '/api/stacks');
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -32,13 +32,16 @@ class StackController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to fetch stacks'
-            ], 500);
+                'error' => 'Failed to fetch stacks',
+                'stacks' => []
+            ], 200); // Возвращаем 200, но с пустым массивом
         } catch (\Exception $e) {
+            \Log::error('Docker Agent error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
+                'error' => $e->getMessage(),
+                'stacks' => []
+            ], 200); // Возвращаем 200, чтобы фронтенд не падал
         }
     }
 
@@ -48,7 +51,7 @@ class StackController extends Controller
     public function show($name)
     {
         try {
-            $response = Http::get($this->dockerAgentUrl . '/api/stacks/' . $name . '/info');
+            $response = Http::timeout(10)->get($this->dockerAgentUrl . '/api/stacks/' . $name . '/info');
 
             if ($response->successful()) {
                 return response()->json($response->json());
@@ -59,6 +62,7 @@ class StackController extends Controller
                 'error' => 'Stack not found'
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Docker Agent error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()
@@ -72,7 +76,7 @@ class StackController extends Controller
     public function store(Request $request)
     {
         try {
-            $response = Http::post($this->dockerAgentUrl . '/api/stacks/' . $request->name . '/create', [
+            $response = Http::timeout(60)->post($this->dockerAgentUrl . '/api/stacks/' . $request->name . '/create', [
                 'stackType' => $request->stack_type,
                 'git_branch' => $request->git_branch ?? 'develop'
             ]);
@@ -86,6 +90,7 @@ class StackController extends Controller
                 'error' => 'Failed to create stack'
             ], 500);
         } catch (\Exception $e) {
+            \Log::error('Docker Agent error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()
@@ -99,7 +104,7 @@ class StackController extends Controller
     public function destroy($name)
     {
         try {
-            $response = Http::post($this->dockerAgentUrl . '/api/stacks/' . $name . '/delete');
+            $response = Http::timeout(30)->post($this->dockerAgentUrl . '/api/stacks/' . $name . '/delete');
 
             if ($response->successful()) {
                 return response()->json($response->json());
@@ -110,6 +115,7 @@ class StackController extends Controller
                 'error' => 'Failed to delete stack'
             ], 500);
         } catch (\Exception $e) {
+            \Log::error('Docker Agent error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()

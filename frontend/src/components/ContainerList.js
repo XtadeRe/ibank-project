@@ -41,13 +41,11 @@ function ContainerList() {
         try {
             setLoading(true);
 
-            // Получаем список стеков из нового эндпоинта
             const response = await axios.get(`${API_URL}/stacks`);
 
             if (response.data.success) {
                 const stacksFromAgent = response.data.stacks || [];
 
-                // Получаем контейнеры для каждого стека
                 const stacksWithContainers = await Promise.all(
                     stacksFromAgent.map(async (stack) => {
                         try {
@@ -57,6 +55,7 @@ function ContainerList() {
                                 containers: containersResponse.data.containers || []
                             };
                         } catch (err) {
+                            console.error(`Error fetching containers for ${stack.name}:`, err);
                             return {
                                 ...stack,
                                 containers: []
@@ -68,11 +67,14 @@ function ContainerList() {
                 setStacks(stacksWithContainers);
                 setError('');
             } else {
-                setError('Ошибка загрузки данных');
+                console.error('API error:', response.data.error);
+                setStacks([]);
+                setError(response.data.error || 'Ошибка загрузки данных');
             }
         } catch (err) {
-            setError('Ошибка загрузки данных');
-            console.error(err);
+            console.error('Fetch stacks error:', err);
+            setError('Ошибка подключения к серверу');
+            setStacks([]);
         } finally {
             setLoading(false);
         }
