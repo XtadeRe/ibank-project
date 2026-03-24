@@ -126,17 +126,17 @@ class DockerAgentService
         }
     }
 
+    /**
+     * Получить контейнеры по имени стека
+     */
     public function getContainersByStack($stackName)
     {
         try {
             $allContainers = $this->getContainers();
-            if (!is_array($allContainers)) {
-                return [];
-            }
 
+            // Фильтруем контейнеры, которые принадлежат стеку
             $stackContainers = array_filter($allContainers, function($container) use ($stackName) {
-                $containerName = is_array($container) ? ($container['name'] ?? '') : '';
-                return strpos($containerName, $stackName . '_') === 0;
+                return strpos($container['name'], $stackName . '_') === 0;
             });
 
             return array_values($stackContainers);

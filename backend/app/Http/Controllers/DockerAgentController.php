@@ -38,6 +38,24 @@ class DockerAgentController extends Controller
         }
     }
 
+    public function getStackContainers($stackName)
+    {
+        try {
+            $containers = $this->dockerAgent->getContainersByStack($stackName);
+            return response()->json([
+                'success' => true,
+                'containers' => $containers
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Ошибка получения контейнеров стека: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'containers' => []
+            ], 500);
+        }
+    }
+
     /**
      * Перезапустить контейнер
      */
