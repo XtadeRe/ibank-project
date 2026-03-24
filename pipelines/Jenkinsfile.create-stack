@@ -1,0 +1,135 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(name: 'stack_name', defaultValue: '', description: 'Название стека (оставьте пустым для автоматической генерации)')
+        choice(name: 'stack_type', choices: ['full', 'db', 'php'], description: 'Тип стека')
+        string(name: 'git_branch', defaultValue: 'develop', description: 'Git branch (только для full стека)')
+    }
+    
+    environment {
+        DOCKER_AGENT_URL = 'http://host.docker.internal:3001'
+    }
+    
+    stages {
+        stage('Validate Parameters') {
+            steps {
+                script {
+                    if (params.stack_name == '') {
+                        def timestamp = new Date().format('yyyyMMddHHmmss')
+                        env.STACK_NAME = "${params.stack_type}-${timestamp}"
+                    } else {
+                        env.STACK_NAME = params.stack_name
+                    }
+                    echo "📌 Stack Name: ${env.STACK_NAME}"
+                    echo "📦 Stack Type: ${params.stack_type}"
+                    
+                    if (params.stack_type == 'full' && params.git_branch == '') {
+                        error "❌ Для full стека необходимо указать ветку git"
+                    }
+                }
+            }
+        }
+        
+        stage('Check Docker Agent') {
+            steps {
+                script {
+                    def healthCheck = sh(
+                        script: "curl -s -o /dev/null -w '%{http_code}' ${DOCKER_AGENT_URL}/api/health",
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (healthCheck == '200') {
+                        echo "✅ Docker Agent is available"
+                    } else {
+                        error "❌ Docker Agent not available"
+                    }
+                }
+            }
+        }
+        
+        stage('Create Stack') {
+            steps {
+                script {
+                    echo "🚀 Creating stack: ${env.STACK_NAME}"
+                    
+                    def response = sh(
+                        script: """
+                            curl -X POST ${DOCKER_AGENT_URL}/api/stacks/${env.STACK_NAME}/create \
+                            -H "Content-Type: application/json" \
+                            -d '{
+                                "stackType": "${params.stack_type}",
+                                "git_branch": "${params.git_branch}"
+                            }'
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "📡 Response: ${response}"
+                    
+                    def jsonSlurper = new groovy.json.JsonSlurper()
+                    def jsonResponse = jsonSlurper.parseText(response)
+                    
+                    if (jsonResponse.success) {
+                        echo "✅ Stack created successfully"
+                    } else {
+                        error "❌ Failed to create stack: ${jsonResponse.error}"
+                    }
+                }
+            }
+        }
+        
+        stage('Wait a moment') {
+            steps {
+                script {
+                    echo "⏳ Waiting for stack to be ready..."
+                    sleep(time: 5, unit: 'SECONDS')
+                }
+            }
+        }
+        
+        stage('Display Info') {
+            steps {
+                script {
+                    def info = sh(
+                        script: "curl -s ${DOCKER_AGENT_URL}/api/stacks/${env.STACK_NAME}/info",
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo """
+╔══════════════════════════════════════════════════════════╗
+║           🎉 STACK CREATED SUCCESSFULLY! 🎉               ║
+╠══════════════════════════════════════════════════════════╣
+║ Stack: ${env.STACK_NAME}                                  
+║ Type: ${params.stack_type}                                
+║ Branch: ${params.git_branch}                              
+║ Build: ${env.BUILD_NUMBER}                                
+╠══════════════════════════════════════════════════════════╣
+║ Info: ${info}                                             
+╠══════════════════════════════════════════════════════════╣
+║ To delete the stack:                                      ║
+║ curl -X POST ${DOCKER_AGENT_URL}/api/stacks/${env.STACK_NAME}/delete
+╚══════════════════════════════════════════════════════════╝
+                    """
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "✅ Stack ${env.STACK_NAME} created successfully!"
+        }
+        
+        failure {
+            script {
+                echo "❌ Failed to create stack ${env.STACK_NAME}"
+                // Пытаемся удалить при ошибке
+                sh """
+                    echo "Cleaning up..."
+                    curl -X POST ${DOCKER_AGENT_URL}/api/stacks/${env.STACK_NAME}/delete || true
+                """
+            }
+        }
+    }
+}
