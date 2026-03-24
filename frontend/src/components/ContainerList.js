@@ -61,16 +61,22 @@ function ContainerList() {
                     stacksFromAgent.map(async (stack) => {
                         try {
                             const containersResponse = await axios.get(`${API_URL}/docker/stacks/${stack.name}/containers`);
+                            // Используем id из БД, если есть, иначе оставляем null
+                            const dbId = stackIdMap[stack.name] || null;
                             return {
                                 ...stack,
-                                id: stackIdMap[stack.name] || stack.name, // Используем id из БД или имя как fallback
+                                id: dbId,
+                                dbId: dbId, // сохраняем отдельно для отладки
+                                name: stack.name,
                                 containers: containersResponse.data.containers || []
                             };
                         } catch (err) {
                             console.error(`Error fetching containers for ${stack.name}:`, err);
+                            const dbId = stackIdMap[stack.name] || null;
                             return {
                                 ...stack,
-                                id: stackIdMap[stack.name] || stack.name,
+                                id: dbId,
+                                dbId: dbId,
                                 containers: []
                             };
                         }
@@ -159,7 +165,7 @@ function ContainerList() {
     // Загружаем данные при монтировании
     useEffect(() => {
         fetchStacks();
-        const interval = setInterval(fetchStacks, 10000);
+        const interval = setInterval(fetchStacks, 20000);
         return () => clearInterval(interval);
     }, []);
 
