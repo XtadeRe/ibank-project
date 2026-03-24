@@ -97,7 +97,7 @@ class DockerAgentService
     public function deleteStack($stackName)
     {
         try {
-            $response = Http::timeout(30)->post($this->baseUrl . '/api/stacks/' . $stackName . '/delete');
+            $response = Http::timeout(30)->post($this->agentUrl . '/api/stacks/' . $stackName . '/delete');
 
             if ($response->successful()) {
                 return [

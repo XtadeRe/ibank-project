@@ -130,42 +130,73 @@ class SandboxController extends Controller
     /**
      * Перезапустить стек
      */
+    /**
+     * Перезапустить стек (перезапускает все контейнеры стека)
+     */
     public function restart($id)
     {
         try {
             $sandbox = Sandbox::findOrFail($id);
+
             History::log(
                 $sandbox->id,
                 'restart',
                 "Начало перезапуска стека {$sandbox->name}"
             );
 
-            // Удаляем стек (останавливаем контейнеры)
-            $stopResult = $this->dockerAgent->deleteStack($sandbox->name);
+            // Получаем контейнеры стека
+            $containers = $this->dockerAgent->getContainersByStack($sandbox->name);
 
-            if (!($stopResult['success'] ?? false)) {
-                History::log(
-                    $sandbox->id,
-                    'restart',
-                    "Ошибка остановки стека {$sandbox->name} перед перезапуском"
+            if (empty($containers)) {
+                // Если контейнеров нет, запускаем стек заново
+                $startResult = $this->dockerAgent->startStack(
+                    $sandbox->name,
+                    $sandbox->git_branch,
+                    $sandbox->stack_type
                 );
 
+                if ($startResult['success'] ?? false) {
+                    $sandbox->status = 'running';
+                    $sandbox->save();
+
+                    History::log(
+                        $sandbox->id,
+                        'restart',
+                        "Стек {$sandbox->name} запущен"
+                    );
+
+                    return response()->json([
+                        'message' => 'Стек запущен',
+                        'sandbox' => new SandboxResource($sandbox)
+                    ]);
+                }
+
                 return response()->json([
-                    'message' => 'Не удалось остановить стек перед перезапуском',
-                    'error' => $stopResult['error'] ?? 'Unknown error'
+                    'message' => 'Не удалось запустить стек',
+                    'error' => $startResult['error'] ?? 'Unknown error'
                 ], 500);
             }
 
-            sleep(2);
+            // Перезапускаем каждый контейнер стека
+            $restartResults = [];
+            foreach ($containers as $container) {
+                $result = $this->dockerAgent->restartContainer($container['id']);
+                $restartResults[] = [
+                    'container' => $container['name'],
+                    'success' => $result['success'] ?? false
+                ];
+            }
 
-            // Запускаем стек заново
-            $startResult = $this->dockerAgent->startStack(
-                $sandbox->name,
-                $sandbox->git_branch,
-                $sandbox->stack_type
-            );
+            // Проверяем, все ли перезапустились
+            $allSuccess = true;
+            foreach ($restartResults as $result) {
+                if (!$result['success']) {
+                    $allSuccess = false;
+                    break;
+                }
+            }
 
-            if ($startResult['success'] ?? false) {
+            if ($allSuccess) {
                 $sandbox->status = 'running';
                 $sandbox->save();
 
@@ -177,24 +208,22 @@ class SandboxController extends Controller
 
                 return response()->json([
                     'message' => 'Стек перезапущен',
-                    'sandbox' => new SandboxResource($sandbox)
+                    'sandbox' => new SandboxResource($sandbox),
+                    'containers' => $restartResults
                 ]);
             }
-
-            $sandbox->status = 'failed';
-            $sandbox->save();
 
             History::log(
                 $sandbox->id,
                 'restart',
-                "Стек {$sandbox->name} остановлен, но не запустился: " . ($startResult['error'] ?? 'Неизвестная ошибка')
+                "Частичный перезапуск стека {$sandbox->name}"
             );
 
             return response()->json([
-                'message' => 'Стек остановлен, но не запустился',
+                'message' => 'Частичный перезапуск стека',
                 'sandbox' => new SandboxResource($sandbox),
-                'error' => $startResult['error'] ?? 'Неизвестная ошибка'
-            ], 500);
+                'containers' => $restartResults
+            ], 207);
 
         } catch (\Exception $e) {
             Log::error('Ошибка перезапуска стека: ' . $e->getMessage());
@@ -208,8 +237,7 @@ class SandboxController extends Controller
             }
 
             return response()->json([
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'error' => $e->getMessage()
             ], 500);
         }
     }
