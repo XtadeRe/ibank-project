@@ -110,7 +110,7 @@ function UptimeChart({ stackId, stackName }) {
                 <CardContent>
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                         <Typography variant="h6">
-                            Доступность за последние 24 часа
+                            Доступность за 24 часа
                         </Typography>
                         <Chip
                             label={`Сейчас: ${currentTime.toLocaleTimeString()}`}
