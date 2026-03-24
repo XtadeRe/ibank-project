@@ -264,7 +264,15 @@ class SandboxController extends Controller
     public function getUptimeStats($id)
     {
         try {
-            $sandbox = Sandbox::findOrFail($id);
+            // Ищем стек по ID или по имени
+            $sandbox = Sandbox::where('id', $id)->orWhere('name', $id)->first();
+
+            if (!$sandbox) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Стек не найден'
+                ], 404);
+            }
 
             // Статистика за последние 24 часа
             $lastDay = now()->subDay();

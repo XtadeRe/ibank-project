@@ -1,22 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import {
     Box, Card, CardContent, Typography, CircularProgress,
-    Alert, Grid, Paper, Chip, Tooltip as MuiTooltip
+    Alert, Grid, Paper, Chip
 } from '@mui/material';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid,
-    Tooltip, Legend, ResponsiveContainer, AreaChart, Area,
-    ReferenceLine, Label
+    Tooltip, Legend, ResponsiveContainer, ReferenceLine, Label
 } from 'recharts';
 import axios from 'axios';
+import { ApiContext } from '../App';
 
 function UptimeChart({ stackId, stackName }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
+    const API_URL = React.useContext(ApiContext);
 
     useEffect(() => {
+        if (!stackId && !stackName) {
+            setError('Нет данных о стеке');
+            setLoading(false);
+            return;
+        }
         fetchUptimeData();
         const interval = setInterval(fetchUptimeData, 60000);
         const timeInterval = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -25,15 +31,23 @@ function UptimeChart({ stackId, stackName }) {
             clearInterval(interval);
             clearInterval(timeInterval);
         };
-    }, [stackId]);
+    }, [stackId, stackName]);
 
     const fetchUptimeData = async () => {
         try {
-            const response = await axios.get(`http://localhost:8000/api/sandboxes/${stackId}/uptime`);
+            // Для новых стеков используем имя, для старых - id
+            const identifier = stackId || stackName;
+            const response = await axios.get(`${API_URL}/sandboxes/${identifier}/uptime`);
             setData(response.data);
             setError('');
         } catch (err) {
-            setError('Ошибка загрузки статистики');
+            // Если нет данных в БД, показываем заглушку
+            if (err.response?.status === 404) {
+                setData(null);
+                setError('Статистика временно недоступна');
+            } else {
+                setError('Ошибка загрузки статистики');
+            }
             console.error(err);
         } finally {
             setLoading(false);
@@ -48,9 +62,11 @@ function UptimeChart({ stackId, stackName }) {
         );
     }
 
-    if (error || !data) {
+    if (error || !data || !data.chart) {
         return (
-            <Alert severity="error">{error || 'Нет данных'}</Alert>
+            <Alert severity="info" sx={{ mt: 2 }}>
+                {error || 'Статистика доступности накапливается...'}
+            </Alert>
         );
     }
 
@@ -61,12 +77,10 @@ function UptimeChart({ stackId, stackName }) {
         return '#f44336';
     };
 
-    // Находим индекс текущего часа
     const currentHourIndex = data.chart?.findIndex(item => item.isCurrentHour) || -1;
 
     return (
         <Box>
-            {/* Карточки с процентами */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
                 {['day', 'week', 'month'].map((period) => (
                     <Grid item xs={4} key={period}>
@@ -89,7 +103,6 @@ function UptimeChart({ stackId, stackName }) {
                 ))}
             </Grid>
 
-            {/* График доступности по часам */}
             <Card>
                 <CardContent>
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -112,7 +125,7 @@ function UptimeChart({ stackId, stackName }) {
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis
                                     dataKey="hour"
-                                    interval={3} // Показываем каждый 3-й час для читаемости
+                                    interval={3}
                                 />
                                 <YAxis
                                     domain={[0, 100]}
@@ -147,7 +160,6 @@ function UptimeChart({ stackId, stackName }) {
                                     }}
                                 />
 
-                                {/* Вертикальная линия для текущего часа */}
                                 {currentHourIndex !== -1 && (
                                     <ReferenceLine
                                         x={data.chart[currentHourIndex].hour}
@@ -177,7 +189,6 @@ function UptimeChart({ stackId, stackName }) {
                         </ResponsiveContainer>
                     </Box>
 
-                    {/* Пояснение */}
                     <Box display="flex" justifyContent="center" gap={4} mt={2}>
                         <Box display="flex" alignItems="center">
                             <Box sx={{ width: 20, height: 3, bgcolor: '#8884d8', mr: 1 }} />

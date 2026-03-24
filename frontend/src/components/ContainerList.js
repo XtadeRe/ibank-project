@@ -253,7 +253,7 @@ function ContainerList() {
                                         <Typography>Статистика доступности</Typography>
                                     </AccordionSummary>
                                     <AccordionDetails>
-                                        <UptimeChart stackId={stack.id} stackName={stack.name} />
+                                        <UptimeChart stackName={stack.name} />
                                     </AccordionDetails>
                                 </Accordion>
 
