@@ -104,7 +104,14 @@ class StackController extends Controller
     public function destroy($name)
     {
         try {
+            \Log::info('Удаление стека: ' . $name);
+
             $response = Http::timeout(30)->post($this->dockerAgentUrl . '/api/stacks/' . $name . '/delete');
+
+            \Log::info('Ответ от Docker Agent', [
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
 
             if ($response->successful()) {
                 return response()->json($response->json());
@@ -112,7 +119,7 @@ class StackController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to delete stack'
+                'error' => 'Failed to delete stack: ' . $response->body()
             ], 500);
         } catch (\Exception $e) {
             \Log::error('Docker Agent error: ' . $e->getMessage());

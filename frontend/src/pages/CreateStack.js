@@ -122,7 +122,7 @@ function CreateStack() {
                 )}
 
                 {successMessage && (
-                    <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage('')}>
+                    <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage('Сборка запущена!')}>
                         {successMessage}
                     </Alert>
                 )}
