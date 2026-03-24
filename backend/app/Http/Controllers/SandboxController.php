@@ -179,12 +179,26 @@ class SandboxController extends Controller
 
             // Перезапускаем каждый контейнер стека
             $restartResults = [];
+            $allSuccess = true;
+
             foreach ($containers as $container) {
+                Log::info('Обработка контейнера', [
+                    'container' => $container['name'],
+                    'id' => $container['id'],
+                    'state' => $container['state']
+                ]);
+
                 $result = $this->dockerAgent->restartContainer($container['id']);
+
                 $restartResults[] = [
                     'container' => $container['name'],
-                    'success' => $result['success'] ?? false
+                    'success' => $result['success'] ?? false,
+                    'error' => $result['error'] ?? null
                 ];
+
+                if (!($result['success'] ?? false)) {
+                    $allSuccess = false;
+                }
             }
 
             // Проверяем, все ли перезапустились
