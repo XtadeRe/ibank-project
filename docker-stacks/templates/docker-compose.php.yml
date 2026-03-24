@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: app_php
+    volumes:
+      - ./backend:/var/www/html
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
