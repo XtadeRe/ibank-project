@@ -41,54 +41,78 @@ function ContainerList() {
         try {
             setLoading(true);
 
-            // Получаем список стеков из Docker Agent с таймаутом
-            const response = await Promise.race([
-                axios.get(`${API_URL}/stacks`),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            // Получаем список стеков из Docker Agent
+            let stacksFromAgent = [];
+            try {
+                const response = await axios.get(`${API_URL}/stacks`);
+                if (response.data.success) {
+                    stacksFromAgent = response.data.stacks || [];
+                }
+            } catch (err) {
+                console.error('Error fetching stacks:', err);
+                // Продолжаем с пустым массивом
+            }
+
+            // Получаем стек из БД для сопоставления id
+            let sandboxes = [];
+            try {
+                const sandboxesResponse = await axios.get(`${API_URL}/sandboxes`);
+                sandboxes = sandboxesResponse.data.data || [];
+            } catch (err) {
+                console.error('Error fetching sandboxes:', err);
+            }
+
+            const stackIdMap = {};
+            sandboxes.forEach(sandbox => {
+                stackIdMap[sandbox.name] = sandbox.id;
+            });
+
+            // В состоянии
+            const [loadingContainers, setLoadingContainers] = useState({});
+
+// При загрузке
+            const containersPromises = stacksFromAgent.map(async (stack) => {
+                setLoadingContainers(prev => ({ ...prev, [stack.name]: true }));
+                try {
+                    const containersResponse = await axios.get(`${API_URL}/docker/stacks/${stack.name}/containers`);
+                    return {
+                        ...stack,
+                        id: stackIdMap[stack.name] || null,
+                        name: stack.name,
+                        containers: containersResponse.data.containers || []
+                    };
+                } catch (err) {
+                    return {
+                        ...stack,
+                        id: stackIdMap[stack.name] || null,
+                        name: stack.name,
+                        containers: []
+                    };
+                } finally {
+                    setLoadingContainers(prev => ({ ...prev, [stack.name]: false }));
+                }
+            });
+
+            // Ждем все промисы, но с таймаутом через Promise.race
+            const timeoutPromise = new Promise((resolve) => {
+                setTimeout(() => {
+                    console.warn('Some requests timed out, continuing with partial data');
+                    resolve(stacksFromAgent.map(stack => ({
+                        ...stack,
+                        id: stackIdMap[stack.name] || null,
+                        name: stack.name,
+                        containers: []
+                    })));
+                }, 8000);
+            });
+
+            const stacksWithContainers = await Promise.race([
+                Promise.all(containersPromises),
+                timeoutPromise
             ]);
 
-            if (response.data.success) {
-                const stacksFromAgent = response.data.stacks || [];
-
-                // Получаем стек из БД для сопоставления id
-                const sandboxesResponse = await axios.get(`${API_URL}/sandboxes`);
-                const sandboxes = sandboxesResponse.data.data || [];
-
-                const stackIdMap = {};
-                sandboxes.forEach(sandbox => {
-                    stackIdMap[sandbox.name] = sandbox.id;
-                });
-
-                // Загружаем контейнеры параллельно с таймаутом
-                const containersPromises = stacksFromAgent.map(async (stack) => {
-                    try {
-                        const containersResponse = await Promise.race([
-                            axios.get(`${API_URL}/docker/stacks/${stack.name}/containers`),
-                            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
-                        ]);
-                        return {
-                            ...stack,
-                            id: stackIdMap[stack.name] || null,
-                            name: stack.name,
-                            containers: containersResponse.data.containers || []
-                        };
-                    } catch (err) {
-                        console.error(`Error fetching containers for ${stack.name}:`, err);
-                        return {
-                            ...stack,
-                            id: stackIdMap[stack.name] || null,
-                            name: stack.name,
-                            containers: []
-                        };
-                    }
-                });
-
-                const stacksWithContainers = await Promise.all(containersPromises);
-                setStacks(stacksWithContainers);
-                setError('');
-            } else {
-                setStacks([]);
-            }
+            setStacks(stacksWithContainers);
+            setError('');
         } catch (err) {
             console.error('Fetch stacks error:', err);
             setError('Ошибка подключения к серверу');
@@ -232,18 +256,18 @@ function ContainerList() {
 
             <Grid container spacing={3}>
                 {stacks.map((stack) => (
-                    <Grid item xs={12} key={stack.id}>
+                    <Grid item xs={12} key={stack.id || stack.name}>
                         <Card>
                             <CardContent>
                                 <Box display="flex" gap={1} mb={1}>
                                     <Chip
-                                        label={stack.git_branch}
+                                        label={stack.git_branch || 'develop'}
                                         size="small"
                                         color={stack.git_branch === 'master' ? 'primary' : 'secondary'}
                                         variant="outlined"
                                     />
                                     <Chip
-                                        label={`v${stack.version}`}
+                                        label={stack.version || 'v1.0.0'}
                                         size="small"
                                         variant="outlined"
                                     />
@@ -252,20 +276,27 @@ function ContainerList() {
                                     {stack.name}
                                 </Typography>
 
-                                {stack.containers.map(container => (
-                                    <Box key={container.id} sx={{ ml: 2, mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                                        <Box display="flex" justifyContent="space-between">
-                                            <Typography variant="body2">
-                                                <strong>{container.name.replace(`${stack.name}_`, '')}:</strong> {container.image}
-                                            </Typography>
-                                            <Chip
-                                                label={getStatusText(container.state)}
-                                                color={getStatusColor(container.state)}
-                                                size="small"
-                                            />
-                                        </Box>
+                                {loadingContainers[stack.name] ? (
+                                    <Box sx={{ ml: 2, p: 1, textAlign: 'center' }}>
+                                        <CircularProgress size={20} />
                                     </Box>
-                                ))}
+                                ) : (
+                                    stack.containers.map(container => (
+                                        <Box key={container.id} sx={{ ml: 2, mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                                            <Box display="flex" justifyContent="space-between">
+                                                <Typography variant="body2">
+                                                    <strong>{container.name.replace(`${stack.name}_`, '')}:</strong> {container.image}
+                                                </Typography>
+                                                <Chip
+                                                    label={getStatusText(container.state)}
+                                                    color={getStatusColor(container.state)}
+                                                    size="small"
+                                                />
+                                            </Box>
+                                        </Box>
+                                    ))
+                                )}
+
                                 <Accordion sx={{ mt: 2 }}>
                                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                                         <Typography>Статистика доступности</Typography>
@@ -286,6 +317,7 @@ function ContainerList() {
                                         onClick={() => checkStackHealth(stack.id)}
                                         startIcon={<HealthAndSafetyIcon />}
                                         sx={{ mr: 1 }}
+                                        disabled={!stack.id}
                                     >
                                         Проверить
                                     </Button>
@@ -295,6 +327,7 @@ function ContainerList() {
                                         onClick={() => restartStack(stack.id)}
                                         startIcon={<RestartAltIcon />}
                                         sx={{ mr: 1 }}
+                                        disabled={!stack.id}
                                     >
                                         Перезапустить
                                     </Button>
@@ -307,6 +340,7 @@ function ContainerList() {
                                             stackName: stack.name
                                         })}
                                         startIcon={<DeleteOutlined />}
+                                        disabled={!stack.name}
                                     >
                                         Удалить
                                     </Button>
