@@ -36,7 +36,7 @@ class DockerAgentService
             ]);
 
             // Отправляем запрос в Docker Agent (server.js)
-            $response = Http::timeout(120)
+            $response = Http::timeout(230)
                 ->post($this->agentUrl . '/api/stacks/' . $name . '/up', [
                     'git_branch' => $gitBranch,
                     'stackType' => $stackType
