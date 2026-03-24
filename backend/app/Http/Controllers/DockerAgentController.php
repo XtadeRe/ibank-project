@@ -41,7 +41,11 @@ class DockerAgentController extends Controller
     public function getStackContainers($stackName)
     {
         try {
-            $containers = $this->dockerAgent->getContainersByStack($stackName);
+            // Используем кэш на 5 секунд
+            $containers = cache()->remember("stack_containers_{$stackName}", 5, function() use ($stackName) {
+                return $this->dockerAgent->getContainersByStack($stackName);
+            });
+
             return response()->json([
                 'success' => true,
                 'containers' => $containers

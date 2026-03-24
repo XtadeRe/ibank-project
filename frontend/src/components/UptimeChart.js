@@ -35,9 +35,13 @@ function UptimeChart({ stackId, stackName }) {
 
     const fetchUptimeData = async () => {
         try {
-            // Используем stackId (из БД) для запроса
             const identifier = stackId || stackName;
-            const response = await axios.get(`${API_URL}/sandboxes/${identifier}/uptime`);
+            // Добавляем кэширование на 30 секунд
+            const response = await axios.get(`${API_URL}/sandboxes/${identifier}/uptime`, {
+                headers: {
+                    'Cache-Control': 'max-age=30'
+                }
+            });
             setData(response.data);
             setError('');
         } catch (err) {
@@ -71,8 +75,8 @@ function UptimeChart({ stackId, stackName }) {
 
     const getUptimeColor = (value) => {
         if (value >= 99.9) return '#4caf50';
-        if (value >= 99) return '#8bc34a';
-        if (value >= 95) return '#ffc107';
+        if (value >= 70) return '#8bc34a';
+        if (value >= 50) return '#ffc107';
         return '#f44336';
     };
 

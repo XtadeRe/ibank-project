@@ -20,7 +20,7 @@ class StackController extends Controller
     public function index()
     {
         try {
-            $response = Http::timeout(10)->get($this->dockerAgentUrl . '/api/stacks');
+            $response = Http::timeout(3)->get($this->dockerAgentUrl . '/api/stacks');
 
             if ($response->successful()) {
                 $data = $response->json();

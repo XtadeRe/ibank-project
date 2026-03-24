@@ -41,54 +41,53 @@ function ContainerList() {
         try {
             setLoading(true);
 
-            // Получаем список стеков из Docker Agent
-            const response = await axios.get(`${API_URL}/stacks`);
+            // Получаем список стеков из Docker Agent с таймаутом
+            const response = await Promise.race([
+                axios.get(`${API_URL}/stacks`),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]);
 
             if (response.data.success) {
                 const stacksFromAgent = response.data.stacks || [];
 
-                // Получаем список стеков из БД для сопоставления id
+                // Получаем стек из БД для сопоставления id
                 const sandboxesResponse = await axios.get(`${API_URL}/sandboxes`);
                 const sandboxes = sandboxesResponse.data.data || [];
 
-                // Создаем маппинг имени стека на id из БД
                 const stackIdMap = {};
                 sandboxes.forEach(sandbox => {
                     stackIdMap[sandbox.name] = sandbox.id;
                 });
 
-                const stacksWithContainers = await Promise.all(
-                    stacksFromAgent.map(async (stack) => {
-                        try {
-                            const containersResponse = await axios.get(`${API_URL}/docker/stacks/${stack.name}/containers`);
-                            // Используем id из БД, если есть, иначе оставляем null
-                            const dbId = stackIdMap[stack.name] || null;
-                            return {
-                                ...stack,
-                                id: dbId,
-                                dbId: dbId, // сохраняем отдельно для отладки
-                                name: stack.name,
-                                containers: containersResponse.data.containers || []
-                            };
-                        } catch (err) {
-                            console.error(`Error fetching containers for ${stack.name}:`, err);
-                            const dbId = stackIdMap[stack.name] || null;
-                            return {
-                                ...stack,
-                                id: dbId,
-                                dbId: dbId,
-                                containers: []
-                            };
-                        }
-                    })
-                );
+                // Загружаем контейнеры параллельно с таймаутом
+                const containersPromises = stacksFromAgent.map(async (stack) => {
+                    try {
+                        const containersResponse = await Promise.race([
+                            axios.get(`${API_URL}/docker/stacks/${stack.name}/containers`),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+                        ]);
+                        return {
+                            ...stack,
+                            id: stackIdMap[stack.name] || null,
+                            name: stack.name,
+                            containers: containersResponse.data.containers || []
+                        };
+                    } catch (err) {
+                        console.error(`Error fetching containers for ${stack.name}:`, err);
+                        return {
+                            ...stack,
+                            id: stackIdMap[stack.name] || null,
+                            name: stack.name,
+                            containers: []
+                        };
+                    }
+                });
 
+                const stacksWithContainers = await Promise.all(containersPromises);
                 setStacks(stacksWithContainers);
                 setError('');
             } else {
-                console.error('API error:', response.data.error);
                 setStacks([]);
-                setError(response.data.error || 'Ошибка загрузки данных');
             }
         } catch (err) {
             console.error('Fetch stacks error:', err);

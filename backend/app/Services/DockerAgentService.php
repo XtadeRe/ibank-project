@@ -105,7 +105,7 @@ class DockerAgentService
     public function getContainers()
     {
         try {
-            $response = Http::timeout(10)->get($this->agentUrl . '/api/containers');
+            $response = Http::timeout(5)->get($this->agentUrl . '/api/containers');
             return $response->json() ?? [];
         } catch (\Exception $e) {
             Log::error('Ошибка получения контейнеров: ' . $e->getMessage());
