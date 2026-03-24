@@ -41,33 +41,35 @@ function ContainerList() {
         try {
             setLoading(true);
 
-            // 1. Получаем все стеки из БД
-            const stacksResponse = await axios.get(`${API_URL}/sandboxes`);
-            const stacksFromDb = stacksResponse.data.data || [];
+            // Получаем список стеков из нового эндпоинта
+            const response = await axios.get(`${API_URL}/stacks`);
 
-            // 2. Получаем все контейнеры из Docker
-            const containersResponse = await axios.get(`${API_URL}/docker/containers`);
-            const allContainers = containersResponse.data.containers || [];
+            if (response.data.success) {
+                const stacksFromAgent = response.data.stacks || [];
 
-            // 3. Группируем контейнеры по стекам
-            const stacksWithContainers = stacksFromDb.map(stack => {
-                // Ищем контейнеры, которые принадлежат этому стеку
-                const stackContainers = allContainers.filter(container =>
-                    container.name.startsWith(stack.name + '_')
+                // Получаем контейнеры для каждого стека
+                const stacksWithContainers = await Promise.all(
+                    stacksFromAgent.map(async (stack) => {
+                        try {
+                            const containersResponse = await axios.get(`${API_URL}/docker/stacks/${stack.name}/containers`);
+                            return {
+                                ...stack,
+                                containers: containersResponse.data.containers || []
+                            };
+                        } catch (err) {
+                            return {
+                                ...stack,
+                                containers: []
+                            };
+                        }
+                    })
                 );
 
-                return {
-                    ...stack,
-                    containers: stackContainers,
-                    // Определяем общий статус стека
-                    overall_status: stackContainers.length > 0
-                        ? (stackContainers.every(c => c.state === 'running') ? 'running' : 'partial')
-                        : 'stopped'
-                };
-            });
-
-            setStacks(stacksWithContainers);
-            setError('');
+                setStacks(stacksWithContainers);
+                setError('');
+            } else {
+                setError('Ошибка загрузки данных');
+            }
         } catch (err) {
             setError('Ошибка загрузки данных');
             console.error(err);
@@ -128,11 +130,8 @@ function ContainerList() {
     // Удаление стека
     const deleteStack = async () => {
         try {
-            // Удаляем через Docker API
-            await axios.post(`${API_URL}/docker/stacks/${deleteDialog.stackName}/delete`);
-
-            // Удаляем из БД
-            await axios.delete(`${API_URL}/sandboxes/${deleteDialog.stackId}`);
+            // Удаляем через новый эндпоинт
+            await axios.delete(`${API_URL}/stacks/${deleteDialog.stackName}`);
 
             setDeleteDialog({ open: false, stackId: null, stackName: '' });
             fetchStacks();

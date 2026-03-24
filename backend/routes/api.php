@@ -4,6 +4,7 @@ use App\Http\Controllers\DockerAgentController;
 use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\JenkinsController;
 use App\Http\Controllers\SandboxController;
+use App\Http\Controllers\StackController;
 use App\Models\History;
 use Illuminate\Support\Facades\Route;
 
@@ -43,3 +44,12 @@ Route::post('/jenkins/deploy', [JenkinsController::class, 'deploy']);
 Route::get('/jenkins/jobs', [JenkinsController::class, 'getJobs']);
 Route::post('/jenkins/webhook', [JenkinsController::class, 'webhook']);
 Route::get('/git-branches', [JenkinsController::class, 'getBranches']);
+
+
+// Маршруты для управления стеками через Docker Agent
+Route::prefix('stacks')->group(function () {
+    Route::get('/', [StackController::class, 'index']);
+    Route::get('/{name}', [StackController::class, 'show']);
+    Route::post('/', [StackController::class, 'store']);
+    Route::delete('/{name}', [StackController::class, 'destroy']);
+});
