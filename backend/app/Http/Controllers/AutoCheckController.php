@@ -8,19 +8,6 @@ use Illuminate\Support\Facades\Cache;
 
 class AutoCheckController extends Controller
 {
-    public function runNow()
-    {
-        try {
-            Artisan::call('stacks:auto-check');
-            return response()->json([
-                'success' => true,
-                'output' => Artisan::output()
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
-        }
-    }
-
     public function enable()
     {
         try {
@@ -45,11 +32,8 @@ class AutoCheckController extends Controller
     {
         try {
             $enabled = Cache::get('auto_check_enabled', false);
-
-            // Получаем последний запуск из кэша
             $lastRun = Cache::get('auto_check_last_run');
 
-            // Рассчитываем следующее время (каждые 30 минут)
             $nextRun = null;
             if ($enabled && $lastRun) {
                 $nextRun = \Carbon\Carbon::parse($lastRun)->addMinutes(30);
@@ -62,6 +46,25 @@ class AutoCheckController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function runNow()
+    {
+        try {
+            Artisan::call('stacks:auto-check');
+            $output = Artisan::output();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Автопроверка запущена',
+                'output' => $output
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 }

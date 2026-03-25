@@ -133,7 +133,7 @@ function UptimeChart({ stackId, stackName }) {
                                 <YAxis
                                     domain={[0, 100]}
                                     unit="%"
-                                    tickFormatter={(value) => `${value}%`}
+                                    tickFormatter={(value) => `${value}`}
                                 />
                                 <Tooltip
                                     content={({ active, payload, label }) => {
