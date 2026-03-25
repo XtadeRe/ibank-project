@@ -128,7 +128,6 @@ function ContainerList() {
         }
         try {
             const response = await axios.post(`${API_URL}/sandboxes/${stackId}/check-health`);
-            alert(response.data.message);
             fetchStacks();
         } catch (err) {
             setError('Ошибка проверки стека');
