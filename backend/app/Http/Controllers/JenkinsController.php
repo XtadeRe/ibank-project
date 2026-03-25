@@ -104,6 +104,48 @@ class JenkinsController extends Controller
         }
     }
 
+    public function getJobs()
+    {
+        try {
+            $auth = base64_encode("{$this->jenkinsUser}:{$this->jenkinsToken}");
+
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'Authorization' => "Basic {$auth}",
+                ])
+                ->get("{$this->jenkinsUrl}/api/json");
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $jobs = array_map(function($job) {
+                    return [
+                        'name' => $job['name'],
+                        'url' => $job['url'],
+                        'color' => $job['color'] ?? 'grey'
+                    ];
+                }, $data['jobs'] ?? []);
+
+                return response()->json([
+                    'success' => true,
+                    'jobs' => $jobs
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to fetch jobs',
+                'jobs' => []
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching Jenkins jobs: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'jobs' => []
+            ], 500);
+        }
+    }
+
     /**
      * GET /api/git-branches
      */
