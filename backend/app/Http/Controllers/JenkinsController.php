@@ -32,7 +32,7 @@ class JenkinsController extends Controller
         try {
             $request->validate([
                 'branch' => 'required|string',
-                'stack_type' => 'required|string|in:full,api',
+                'stack_type' => 'required|string|in:full,api,db',
                 'stack_name' => 'required|string|unique:sandboxes,name',
                 'machine_ip' => 'sometimes|ip'
             ]);
