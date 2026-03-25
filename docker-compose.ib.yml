@@ -47,6 +47,8 @@ services:
     build:
       context: .
       dockerfile: docker/frontend/Dockerfile
+      args:
+        - REACT_APP_API_URL=http://localhost:${WEB_PORT}/api
     container_name: ${STACK_NAME}_frontend
     ports:
       - "${FRONTEND_PORT}:3000"
