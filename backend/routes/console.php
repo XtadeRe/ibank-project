@@ -15,5 +15,4 @@ Schedule::command('stacks:auto-check')
     ->everyThirtyMinutes()
     ->when(function () {
         return Cache::get('auto_check_enabled', false);
-    })
-    ->appendOutputTo(storage_path('logs/auto-check.log'));
+    });
