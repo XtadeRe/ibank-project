@@ -184,7 +184,7 @@ function CreateStack() {
                         severity="success"
                         sx={{ mb: 2 }}
                         icon={<CheckCircleIcon />}
-                        onClose={() => setSuccessMessage('')}
+                        onClose={() => setSuccessMessage('Стек создан!')}
                     >
                         {successMessage}
                         <Box sx={{ mt: 1 }}>

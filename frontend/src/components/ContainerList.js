@@ -108,7 +108,7 @@ function ContainerList() {
             });
 
             const stacksWithContainers = await Promise.all(containersPromises);
-            setStacks(stacksWithContainers);
+            setStacks(stacksWithContainers.filter(stack => stack.id !== null));
             setError('');
         } catch (err) {
             console.error('Fetch stacks error:', err);
