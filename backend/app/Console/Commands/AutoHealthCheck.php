@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\HealthCheck;
-use App\Models\Incident;
 use App\Models\Sandbox;
 use App\Services\DockerAgentService;
 use Illuminate\Console\Command;
@@ -13,139 +12,89 @@ use Illuminate\Support\Facades\Log;
 class AutoHealthCheck extends Command
 {
     protected $signature = 'stacks:auto-check';
-    protected $description = 'Автоматическая проверка всех стеков и восстановление при сбоях';
+    protected $description = 'Автоматическая проверка всех стеков';
 
     private $dockerAgent;
 
     public function __construct()
     {
         parent::__construct();
-        $this->dockerAgent = new DockerAgentService('http://localhost:3001');
+        $this->dockerAgent = new DockerAgentService(env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001'));
     }
 
     public function handle()
     {
-        // Проверяем, включена ли автопроверка
-        if (!Cache::get('auto_check_enabled', false)) {
-            $this->info('Автопроверка отключена пользователем');
-            return;
-        }
-
         // Записываем время последнего запуска
         Cache::put('auto_check_last_run', now(), 86400);
 
         $this->info('Запуск автоматической проверки стеков...');
 
-        $sandboxes = Sandbox::whereIn('status', ['running', 'partial'])->get();
+        // Получаем все стеки из БД
+        $sandboxes = Sandbox::all();
+
+        if ($sandboxes->isEmpty()) {
+            $this->info('Нет стеков для проверки');
+            return;
+        }
 
         foreach ($sandboxes as $sandbox) {
-            $this->checkAndRestore($sandbox);
+            $this->checkStack($sandbox);
         }
 
         $this->info('Проверка завершена');
     }
 
-    private function checkAndRestore($sandbox)
+    private function checkStack($sandbox)
     {
         $this->line("Проверка стека: {$sandbox->name}");
 
-        // Получаем контейнеры
-        $containers = $this->dockerAgent->getContainersByStack($sandbox->name);
-
-        if (empty($containers)) {
-            $this->handleFailure($sandbox, 'Контейнеры не найдены');
-            return;
-        }
-
-        $allRunning = true;
-        $failedContainers = [];
-
-        foreach ($containers as $container) {
-            if ($container['state'] !== 'running') {
-                $allRunning = false;
-                $failedContainers[] = $container['name'];
-            }
-        }
-
-        // Сохраняем результат проверки
-        HealthCheck::create([
-            'sandbox_id' => $sandbox->id,
-            'is_available' => $allRunning,
-            'error_message' => $allRunning ? null : implode(', ', $failedContainers)
-        ]);
-
-        if (!$allRunning) {
-            $this->handleFailure($sandbox, 'Контейнеры не работают: ' . implode(', ', $failedContainers));
-        } else {
-            $this->line("{$sandbox->name} - всё работает");
-        }
-    }
-
-    private function handleFailure($sandbox, $message)
-    {
-        $this->warn("{$sandbox->name} - {$message}");
-
-        // Проверяем последние 3 проверки
-        $lastChecks = HealthCheck::where('sandbox_id', $sandbox->id)
-            ->orderBy('created_at', 'desc')
-            ->take(3)
-            ->get();
-
-        $failures = $lastChecks->where('is_available', false)->count();
-
-        // Если 3 раза подряд ошибка - пробуем восстановить
-        if ($failures >= 3) {
-            $this->attemptRecovery($sandbox);
-        }
-    }
-
-    private function attemptRecovery($sandbox)
-    {
-        $this->warn("Попытка восстановления стека {$sandbox->name}...");
-
-        // Логируем инцидент
-        $incident = Incident::create([
-            'sandbox_id' => $sandbox->id,
-            'type' => 'auto_recovery',
-            'severity' => 'high',
-            'message' => "Автоматическое восстановление после 3 неудачных проверок",
-            'resolved' => false
-        ]);
-
         try {
-            // Перезапускаем стек
-            $result = $this->dockerAgent->deleteStack($sandbox->name);
-            sleep(2);
-            $result = $this->dockerAgent->startStack(
-                $sandbox->name,
-                $sandbox->git_branch,
-                $sandbox->stack_type
-            );
+            // Получаем контейнеры стека
+            $containers = $this->dockerAgent->getContainersByStack($sandbox->name);
 
-            if ($result['success']) {
-                $sandbox->status = 'running';
-                $sandbox->save();
+            $isAvailable = true;
+            $errorMessage = null;
+            $responseTime = 0;
 
-                $incident->resolved = true;
-                $incident->resolved_at = now();
-                $incident->save();
-
-                Log::info('Стек успешно восстановлен', ['name' => $sandbox->name]);
-                $this->info("Стек {$sandbox->name} восстановлен");
+            if (empty($containers)) {
+                $isAvailable = false;
+                $errorMessage = 'Контейнеры не найдены';
             } else {
-                $incident->message .= " Ошибка восстановления: " . ($result['error'] ?? 'Неизвестная ошибка');
-                $incident->save();
+                // Проверяем каждый контейнер
+                foreach ($containers as $container) {
+                    if ($container['state'] !== 'running') {
+                        $isAvailable = false;
+                        $errorMessage = "Контейнер {$container['name']} не работает";
+                        break;
+                    }
+                }
+            }
 
-                Log::error('Ошибка восстановления стека', ['name' => $sandbox->name]);
-                $this->error("Не удалось восстановить {$sandbox->name}");
+            // Сохраняем результат проверки
+            HealthCheck::create([
+                'sandbox_id' => $sandbox->id,
+                'is_available' => $isAvailable,
+                'response_time' => $responseTime,
+                'error_message' => $errorMessage
+            ]);
+
+            if ($isAvailable) {
+                $this->line("✅ {$sandbox->name} - работает");
+            } else {
+                $this->warn("⚠️ {$sandbox->name} - {$errorMessage}");
             }
 
         } catch (\Exception $e) {
-            $incident->message .= " Исключение: " . $e->getMessage();
-            $incident->save();
+            Log::error('Ошибка проверки стека: ' . $e->getMessage());
+            $this->error("Ошибка при проверке {$sandbox->name}: " . $e->getMessage());
 
-            Log::error('Ошибка при восстановлении', ['error' => $e->getMessage()]);
-            $this->error("Ошибка: " . $e->getMessage());
+            // Сохраняем ошибку
+            HealthCheck::create([
+                'sandbox_id' => $sandbox->id,
+                'is_available' => false,
+                'response_time' => 0,
+                'error_message' => $e->getMessage()
+            ]);
         }
     }
 }
