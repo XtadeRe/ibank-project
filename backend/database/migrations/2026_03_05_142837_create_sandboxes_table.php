@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('name')->unique();
             $table->string('git_branch');
-            $table->enum('stack_type', ['full', 'api', 'mysql']);
+            $table->enum('stack_type', ['full', 'api', 'db']);
             $table->string('machine_ip');
             $table->enum('status', ['running', 'stopped', 'failed', 'deploying'])->default('stopped');
             $table->string('version')->nullable();
