@@ -7,6 +7,7 @@ use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\StackController;
 use App\Models\History;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AutoCheckController;
 
 // API для Docker Agent
 Route::prefix('docker')->group(function () {
@@ -52,4 +53,11 @@ Route::prefix('stacks')->group(function () {
     Route::get('/{name}', [StackController::class, 'show']);
     Route::post('/', [StackController::class, 'store']);
     Route::delete('/{name}', [StackController::class, 'destroy']);
+});
+
+// Автопроверка
+Route::prefix('auto-check')->group(function () {
+    Route::post('/enable', [AutoCheckController::class, 'enable']);
+    Route::post('/disable', [AutoCheckController::class, 'disable']);
+    Route::get('/status', [AutoCheckController::class, 'status']);
 });

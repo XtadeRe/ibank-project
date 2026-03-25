@@ -20,13 +20,18 @@ import {
     AccordionDetails,
     LinearProgress,
     IconButton,
-    Tooltip
+    Tooltip,
+    Switch,
+    FormControlLabel
 } from '@mui/material';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import StopIcon from '@mui/icons-material/Stop';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 import axios from 'axios';
 import UptimeChart from './UptimeChart';
 import { ApiContext } from '../App';
@@ -39,6 +44,15 @@ function ContainerList() {
     const [creatingStacks, setCreatingStacks] = useState({});
     const [refreshing, setRefreshing] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState({ open: false, stackId: null, stackName: '' });
+
+    // Состояния для авто-проверки
+    const [autoCheckEnabled, setAutoCheckEnabled] = useState(false);
+    const [autoCheckStatus, setAutoCheckStatus] = useState({
+        enabled: false,
+        last_run: null,
+        next_run: null
+    });
+    const [togglingAutoCheck, setTogglingAutoCheck] = useState(false);
 
     const API_URL = useContext(ApiContext);
 
@@ -187,6 +201,35 @@ function ContainerList() {
         }
     };
 
+    // Функция для переключения авто-проверки
+    const toggleAutoCheck = async () => {
+        setTogglingAutoCheck(true);
+        try {
+            const newState = !autoCheckEnabled;
+            const endpoint = newState ? 'enable' : 'disable';
+            await axios.post(`${API_URL}/auto-check/${endpoint}`);
+            setAutoCheckEnabled(newState);
+            fetchAutoCheckStatus();
+            alert(newState ? 'Автоматическая проверка включена' : 'Автоматическая проверка отключена');
+        } catch (err) {
+            console.error('Error toggling auto-check:', err);
+            alert('Ошибка при изменении настроек');
+        } finally {
+            setTogglingAutoCheck(false);
+        }
+    };
+
+    // Функция для получения статуса авто-проверки
+    const fetchAutoCheckStatus = async () => {
+        try {
+            const response = await axios.get(`${API_URL}/auto-check/status`);
+            setAutoCheckStatus(response.data);
+            setAutoCheckEnabled(response.data.enabled);
+        } catch (err) {
+            console.error('Error fetching auto-check status:', err);
+        }
+    };
+
     // Проверка создаваемых стеков из localStorage
     useEffect(() => {
         const checkCreatingStacks = () => {
@@ -240,6 +283,13 @@ function ContainerList() {
             }
         }
     }, [stacks]);
+
+    // Загрузка статуса авто-проверки при монтировании
+    useEffect(() => {
+        fetchAutoCheckStatus();
+        const interval = setInterval(fetchAutoCheckStatus, 60000);
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         fetchStacks();
@@ -313,12 +363,63 @@ function ContainerList() {
                 <Typography variant="h4">
                     Управление стеками
                 </Typography>
-                <Tooltip title="Обновить список">
-                    <IconButton onClick={handleManualRefresh} disabled={refreshing}>
-                        <RefreshIcon />
-                    </IconButton>
-                </Tooltip>
+                <Box>
+                    <Tooltip title={autoCheckEnabled ? "Автопроверка включена" : "Автопроверка отключена"}>
+                        <IconButton
+                            onClick={toggleAutoCheck}
+                            disabled={togglingAutoCheck}
+                            color={autoCheckEnabled ? "success" : "default"}
+                            sx={{ mr: 1 }}
+                        >
+                            {autoCheckEnabled ? <PlayArrowIcon /> : <StopIcon />}
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Обновить список">
+                        <IconButton onClick={handleManualRefresh} disabled={refreshing}>
+                            <RefreshIcon />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
             </Box>
+
+            {/* Блок статуса авто-проверки */}
+            <Paper sx={{ p: 2, mb: 3, bgcolor: autoCheckEnabled ? '#e8f5e9' : '#ffebee' }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap">
+                    <Box>
+                        <Box display="flex" alignItems="center" gap={1}>
+                            <ScheduleIcon color={autoCheckEnabled ? "success" : "disabled"} />
+                            <Typography variant="subtitle1">
+                                {autoCheckEnabled ? '✅ Автопроверка активна' : '⏸️ Автопроверка отключена'}
+                            </Typography>
+                        </Box>
+                        {autoCheckStatus.last_run && (
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                                Последняя проверка: {new Date(autoCheckStatus.last_run).toLocaleString()}
+                            </Typography>
+                        )}
+                        {autoCheckStatus.next_run && autoCheckEnabled && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                                Следующая проверка: ~{new Date(autoCheckStatus.next_run).toLocaleTimeString()}
+                            </Typography>
+                        )}
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                            Автоматическая проверка выполняется каждые 30 минут и восстанавливает упавшие стеки
+                        </Typography>
+                    </Box>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={autoCheckEnabled}
+                                onChange={toggleAutoCheck}
+                                disabled={togglingAutoCheck}
+                                color="success"
+                            />
+                        }
+                        label={autoCheckEnabled ? "Включена" : "Выключена"}
+                        sx={{ ml: 2 }}
+                    />
+                </Box>
+            </Paper>
 
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
@@ -360,7 +461,7 @@ function ContainerList() {
                     const status = getStackStatus(stack);
                     return (
                         <Grid item xs={12} key={stack.id || stack.name}>
-                            <Card>
+                            <Card style={{ width: "1000px" }}>
                                 <CardContent>
                                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                                         <Box display="flex" gap={1}>

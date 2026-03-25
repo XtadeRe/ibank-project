@@ -7,6 +7,7 @@ use App\Models\Incident;
 use App\Models\Sandbox;
 use App\Services\DockerAgentService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class AutoHealthCheck extends Command
@@ -24,6 +25,15 @@ class AutoHealthCheck extends Command
 
     public function handle()
     {
+        // Проверяем, включена ли автопроверка
+        if (!Cache::get('auto_check_enabled', false)) {
+            $this->info('Автопроверка отключена пользователем');
+            return;
+        }
+
+        // Записываем время последнего запуска
+        Cache::put('auto_check_last_run', now(), 86400);
+
         $this->info('Запуск автоматической проверки стеков...');
 
         $sandboxes = Sandbox::whereIn('status', ['running', 'partial'])->get();
