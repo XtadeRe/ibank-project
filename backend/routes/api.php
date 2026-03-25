@@ -60,4 +60,5 @@ Route::prefix('auto-check')->group(function () {
     Route::post('/enable', [AutoCheckController::class, 'enable']);
     Route::post('/disable', [AutoCheckController::class, 'disable']);
     Route::get('/status', [AutoCheckController::class, 'status']);
+    Route::post('/auto-check/run-now', [AutoCheckController::class, 'runNow']);
 });

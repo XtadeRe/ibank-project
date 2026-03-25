@@ -210,7 +210,10 @@ function ContainerList() {
             await axios.post(`${API_URL}/auto-check/${endpoint}`);
             setAutoCheckEnabled(newState);
             fetchAutoCheckStatus();
-            alert(newState ? 'Автоматическая проверка включена' : 'Автоматическая проверка отключена');
+
+            if (newState) {
+                await axios.post(`${API_URL}/auto-check/run-now`);
+            }
         } catch (err) {
             console.error('Error toggling auto-check:', err);
             alert('Ошибка при изменении настроек');

@@ -3,10 +3,24 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 
 class AutoCheckController extends Controller
 {
+    public function runNow()
+    {
+        try {
+            Artisan::call('stacks:auto-check');
+            return response()->json([
+                'success' => true,
+                'output' => Artisan::output()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
     public function enable()
     {
         try {

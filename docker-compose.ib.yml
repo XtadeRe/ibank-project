@@ -23,7 +23,14 @@ services:
       - ./backend:/var/www/html
     ports:
       - "${WEB_PORT}:8000"
-    command: php artisan serve --host=0.0.0.0 --port=8000
+    command: >
+      sh -c "
+        php artisan serve --host=0.0.0.0 --port=8000 2>&1 &
+        while true; do
+          php artisan schedule:run --verbose >> /var/www/html/storage/logs/schedule.log 2>&1
+          sleep 60
+        done
+      "
     environment:
       - DB_HOST=db
       - DB_PORT=3306
