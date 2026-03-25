@@ -119,7 +119,7 @@ function UptimeChart({ stackId, stackName }) {
                         />
                     </Box>
 
-                    <Box sx={{ width: '100%', height: 350 }}>
+                    <Box sx={{ width: '100%', height: 350, minWidth: '550px' }}>
                         <ResponsiveContainer>
                             <LineChart
                                 data={data.chart}

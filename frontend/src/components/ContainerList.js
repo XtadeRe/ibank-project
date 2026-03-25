@@ -445,11 +445,13 @@ function ContainerList() {
                                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                                             <Typography>Статистика доступности</Typography>
                                         </AccordionSummary>
-                                        <AccordionDetails>
-                                            <UptimeChart
-                                                stackId={stack.id}
-                                                stackName={stack.name}
-                                            />
+                                        <AccordionDetails sx={{ overflowX: 'auto', p: 0 }}>
+                                            <Box sx={{ minWidth: '600px', width: '100%' }}>
+                                                <UptimeChart
+                                                    stackId={stack.id}
+                                                    stackName={stack.name}
+                                                />
+                                            </Box>
                                         </AccordionDetails>
                                     </Accordion>
 
