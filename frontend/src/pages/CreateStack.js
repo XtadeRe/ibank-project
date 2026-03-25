@@ -277,22 +277,12 @@ function CreateStack() {
 
                 <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
                     <Button
-                        variant="outlined"
-                        color="secondary"
-                        size="large"
-                        onClick={() => navigate('/')}
-                        disabled={submitting}
-                        sx={{ flex: 1 }}
-                    >
-                        Отмена
-                    </Button>
-                    <Button
                         variant="contained"
                         color="primary"
                         size="large"
                         onClick={handleCreateStack}
                         disabled={submitting || !formData.name || !formData.git_branch || !!nameError}
-                        startIcon={submitting ? <CircularProgress size={20} /> : <BuildIcon />}
+                        startIcon={<BuildIcon />}
                         sx={{ flex: 2 }}
                     >
                         {submitting ? 'Создание...' : 'Создать стек'}

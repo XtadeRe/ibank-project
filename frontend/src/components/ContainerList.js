@@ -219,7 +219,7 @@ function ContainerList() {
             }
         };
 
-        const interval = setInterval(checkAllCreatingStacks, 10000);
+        const interval = setInterval(checkAllCreatingStacks, 30000);
         return () => clearInterval(interval);
     }, []);
 
@@ -290,7 +290,7 @@ function ContainerList() {
     }
 
     return (
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 3, maxWidth: '1000px', mx: 'auto' }}>
             <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, stackId: null, stackName: '' })}>
                 <DialogTitle>Удаление стека</DialogTitle>
                 <DialogContent>
@@ -360,7 +360,7 @@ function ContainerList() {
                     const status = getStackStatus(stack);
                     return (
                         <Grid item xs={12} key={stack.id || stack.name}>
-                            <Card sx={{ opacity: creatingStacks[stack.name] ? 0.7 : 1 }}>
+                            <Card>
                                 <CardContent>
                                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                                         <Box display="flex" gap={1}>
@@ -395,51 +395,20 @@ function ContainerList() {
                                         {stack.name}
                                     </Typography>
 
-                                    {creatingStacks[stack.name] ? (
-                                        <Alert
-                                            severity="info"
-                                            icon={<CircularProgress size={20} />}
-                                            sx={{ mb: 2 }}
-                                            action={
-                                                <Button color="inherit" size="small" onClick={() => checkStackCreationStatus(stack.name)}>
-                                                    Проверить
-                                                </Button>
-                                            }
-                                        >
-                                            <Typography variant="body2" gutterBottom>
-                                                Стек создается...
-                                            </Typography>
-                                            <Typography variant="caption" color="text.secondary">
-                                                Это может занять 1-3 минуты. Страница автоматически обновится.
-                                            </Typography>
-                                        </Alert>
-                                    ) : loadingContainers[stack.name] ? (
-                                        <Box sx={{ ml: 2, p: 2, textAlign: 'center' }}>
-                                            <CircularProgress size={24} />
-                                            <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                                                Загрузка контейнеров...
-                                            </Typography>
-                                        </Box>
-                                    ) : stack.containers.length === 0 ? (
-                                        <Alert severity="warning" sx={{ mb: 2 }}>
-                                            Контейнеры не найдены. Возможно, стек еще не полностью запущен.
-                                        </Alert>
-                                    ) : (
-                                        stack.containers.map(container => (
-                                            <Box key={container.id} sx={{ ml: 2, mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                                                <Box display="flex" justifyContent="space-between" alignItems="center">
-                                                    <Typography variant="body2">
-                                                        <strong>{container.name.replace(`${stack.name}_`, '')}:</strong> {container.image}
-                                                    </Typography>
-                                                    <Chip
-                                                        label={getStatusText(container.state)}
-                                                        color={getStatusColor(container.state)}
-                                                        size="small"
-                                                    />
-                                                </Box>
+                                    {stack.containers.map(container => (
+                                        <Box key={container.id} sx={{ ml: 2, mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                                            <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                <Typography variant="body2">
+                                                    <strong>{container.name.replace(`${stack.name}_`, '')}:</strong> {container.image}
+                                                </Typography>
+                                                <Chip
+                                                    label={getStatusText(container.state)}
+                                                    color={getStatusColor(container.state)}
+                                                    size="small"
+                                                />
                                             </Box>
-                                        ))
-                                    )}
+                                        </Box>
+                                    ))}
 
                                     <Accordion sx={{ mt: 2 }}>
                                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
