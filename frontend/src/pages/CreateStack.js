@@ -169,8 +169,7 @@ function CreateStack() {
                 </Box>
 
                 <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-                    Создание стека занимает 1-3 минуты. После создания вы будете перенаправлены на главную страницу,
-                    где сможете отслеживать статус создания.
+                    Создание стека занимает 1-3 минуты. После создания вы будете перенаправлены на главную страницу.
                 </Typography>
 
                 {submitError && (
@@ -307,18 +306,6 @@ function CreateStack() {
                     </Box>
                 )}
             </Paper>
-
-            <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={6000}
-                onClose={() => setSnackbarOpen(false)}
-                message={`Стек "${createdStackName}" успешно создан!`}
-                action={
-                    <Button color="primary" size="small" onClick={() => navigate('/')}>
-                        Перейти
-                    </Button>
-                }
-            />
         </Container>
     );
 }

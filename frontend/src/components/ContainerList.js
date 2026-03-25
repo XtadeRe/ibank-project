@@ -371,7 +371,7 @@ function ContainerList() {
                             color={autoCheckEnabled ? "success" : "default"}
                             sx={{ mr: 1 }}
                         >
-                            {autoCheckEnabled ? <PlayArrowIcon /> : <StopIcon />}
+                            {autoCheckEnabled ? <StopIcon /> : <PlayArrowIcon />}
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Обновить список">
