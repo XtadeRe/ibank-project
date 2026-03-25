@@ -103,7 +103,9 @@ function CreateStack() {
             setSubmitError(nameError);
             return;
         }
-        if (!formData.git_branch) {
+
+        // Для full и api типов нужна ветка, для db - нет
+        if (formData.stack_type !== 'db' && !formData.git_branch) {
             setSubmitError('Выберите ветку Git');
             return;
         }
@@ -119,13 +121,13 @@ function CreateStack() {
                 name: formData.name,
                 timestamp: Date.now(),
                 type: formData.stack_type,
-                branch: formData.git_branch
+                branch: formData.git_branch || 'none'
             });
             localStorage.setItem('creatingStacks', JSON.stringify(creatingStacks));
 
             // Отправляем запрос в Jenkins
             const response = await axios.post(`${API_URL}/jenkins/deploy`, {
-                branch: formData.git_branch,
+                branch: formData.git_branch || 'develop',
                 stack_type: formData.stack_type,
                 stack_name: formData.name,
                 machine_ip: formData.machine_ip
@@ -210,42 +212,45 @@ function CreateStack() {
                     }}
                 />
 
-                <FormControl fullWidth margin="normal" required error={!!branchesError}>
-                    <InputLabel>Ветка Git</InputLabel>
-                    <Select
-                        name="git_branch"
-                        value={formData.git_branch}
-                        onChange={handleChange}
-                        label="Ветка Git"
-                        disabled={loadingBranches || submitting}
-                    >
-                        <MenuItem value="">
-                            <em>Выберите ветку</em>
-                        </MenuItem>
-                        {loadingBranches ? (
-                            <MenuItem disabled>
-                                <CircularProgress size={20} sx={{ mr: 1 }} /> Загрузка...
+                {/* Поле выбора ветки - отображается только для full и api */}
+                {formData.stack_type !== 'db' && (
+                    <FormControl fullWidth margin="normal" required error={!!branchesError}>
+                        <InputLabel>Ветка Git</InputLabel>
+                        <Select
+                            name="git_branch"
+                            value={formData.git_branch}
+                            onChange={handleChange}
+                            label="Ветка Git"
+                            disabled={loadingBranches || submitting}
+                        >
+                            <MenuItem value="">
+                                <em>Выберите ветку</em>
                             </MenuItem>
-                        ) : branchesError ? (
-                            <MenuItem disabled>
-                                Ошибка загрузки
-                            </MenuItem>
-                        ) : (
-                            branches.map((branch) => (
-                                <MenuItem key={branch} value={branch}>
-                                    {branch}
-                                    {branch === 'master' && ' (стабильная)'}
-                                    {branch === 'develop' && ' (разработка)'}
+                            {loadingBranches ? (
+                                <MenuItem disabled>
+                                    <CircularProgress size={20} sx={{ mr: 1 }} /> Загрузка...
                                 </MenuItem>
-                            ))
+                            ) : branchesError ? (
+                                <MenuItem disabled>
+                                    Ошибка загрузки
+                                </MenuItem>
+                            ) : (
+                                branches.map((branch) => (
+                                    <MenuItem key={branch} value={branch}>
+                                        {branch}
+                                        {branch === 'master' && ' (стабильная)'}
+                                        {branch === 'develop' && ' (разработка)'}
+                                    </MenuItem>
+                                ))
+                            )}
+                        </Select>
+                        {branchesError && (
+                            <Typography color="error" variant="caption" sx={{ mt: 1 }}>
+                                {branchesError}
+                            </Typography>
                         )}
-                    </Select>
-                    {branchesError && (
-                        <Typography color="error" variant="caption" sx={{ mt: 1 }}>
-                            {branchesError}
-                        </Typography>
-                    )}
-                </FormControl>
+                    </FormControl>
+                )}
 
                 <FormControl fullWidth margin="normal">
                     <InputLabel>Тип стека</InputLabel>
@@ -258,7 +263,7 @@ function CreateStack() {
                     >
                         <MenuItem value="full">
                             <Box>
-                                <Typography>Полный стек (Laravel + React)</Typography>
+                                <Typography>Интернет банк</Typography>
                                 <Typography variant="caption" color="textSecondary">
                                     Включает базу данных, PHP бэкенд и React фронтенд
                                 </Typography>
@@ -266,9 +271,17 @@ function CreateStack() {
                         </MenuItem>
                         <MenuItem value="api">
                             <Box>
-                                <Typography>Только API</Typography>
+                                <Typography>Backend сервер</Typography>
                                 <Typography variant="caption" color="textSecondary">
-                                    Только база данных и PHP бэкенд (без фронтенда)
+                                    Включает базу данных и PHP бэкенд (без фронтенда)
+                                </Typography>
+                            </Box>
+                        </MenuItem>
+                        <MenuItem value="db">
+                            <Box>
+                                <Typography>База данных</Typography>
+                                <Typography variant="caption" color="textSecondary">
+                                    Только MySQL база данных (без бэкенда и фронтенда)
                                 </Typography>
                             </Box>
                         </MenuItem>
@@ -277,11 +290,21 @@ function CreateStack() {
 
                 <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
                     <Button
+                        variant="outlined"
+                        color="secondary"
+                        size="large"
+                        onClick={() => navigate('/')}
+                        disabled={submitting}
+                        sx={{ flex: 1 }}
+                    >
+                        Отмена
+                    </Button>
+                    <Button
                         variant="contained"
                         color="primary"
                         size="large"
                         onClick={handleCreateStack}
-                        disabled={submitting || !formData.name || !formData.git_branch || !!nameError}
+                        disabled={submitting || !formData.name || (formData.stack_type !== 'db' && !formData.git_branch) || !!nameError}
                         startIcon={<BuildIcon />}
                         sx={{ flex: 2 }}
                     >
