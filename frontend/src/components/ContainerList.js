@@ -144,7 +144,6 @@ function ContainerList() {
         try {
             setLoadingContainers(prev => ({ ...prev, [stackName]: true }));
             await axios.post(`${API_URL}/sandboxes/${stackId}/restart`);
-            alert(`Стек "${stackName}" перезапущен`);
             fetchStacks();
         } catch (err) {
             setError('Ошибка перезапуска стека');
@@ -215,7 +214,6 @@ function ContainerList() {
             }
         } catch (err) {
             console.error('Error toggling auto-check:', err);
-            alert('Ошибка при изменении настроек');
         } finally {
             setTogglingAutoCheck(false);
         }
@@ -391,7 +389,7 @@ function ContainerList() {
                         <Box display="flex" alignItems="center" gap={1}>
                             <ScheduleIcon color={autoCheckEnabled ? "success" : "disabled"} />
                             <Typography variant="subtitle1">
-                                {autoCheckEnabled ? '✅ Автопроверка активна' : '⏸️ Автопроверка отключена'}
+                                {autoCheckEnabled ? 'Автопроверка активна' : 'Автопроверка отключена'}
                             </Typography>
                         </Box>
                         {autoCheckStatus.last_run && (
