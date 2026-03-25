@@ -2,11 +2,12 @@ import React, { useState, useEffect, useContext } from 'react';
 import {
     Container, Typography, Paper, TextField, Button,
     FormControl, InputLabel, Select, MenuItem,
-    CircularProgress, Alert, Box
+    CircularProgress, Alert, Box, Snackbar, Link
 } from '@mui/material';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import BuildIcon from '@mui/icons-material/Build';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { ApiContext } from '../App';
 
 function CreateStack() {
@@ -30,11 +31,39 @@ function CreateStack() {
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [createdStackName, setCreatedStackName] = useState('');
+
+    // Валидация имени стека
+    const [nameError, setNameError] = useState('');
 
     // Загрузка веток при монтировании
     useEffect(() => {
         fetchBranches();
     }, []);
+
+    // Валидация имени стека
+    const validateName = (name) => {
+        const regex = /^[a-z0-9-]+$/;
+        if (!name) {
+            setNameError('');
+            return true;
+        }
+        if (!regex.test(name)) {
+            setNameError('Только латинские буквы (нижний регистр), цифры и дефис');
+            return false;
+        }
+        if (name.length < 3) {
+            setNameError('Имя должно содержать минимум 3 символа');
+            return false;
+        }
+        if (name.length > 30) {
+            setNameError('Имя не должно превышать 30 символов');
+            return false;
+        }
+        setNameError('');
+        return true;
+    };
 
     // Получение списка веток
     const fetchBranches = async () => {
@@ -54,6 +83,9 @@ function CreateStack() {
     // Обработка изменения полей
     const handleChange = (e) => {
         const { name, value } = e.target;
+        if (name === 'name') {
+            validateName(value);
+        }
         setFormData(prev => ({
             ...prev,
             [name]: value
@@ -61,13 +93,16 @@ function CreateStack() {
     };
 
     // Создание стека через Jenkins
-    // Создание стека через Jenkins
     const handleCreateStack = async () => {
+        // Валидация
         if (!formData.name) {
             setSubmitError('Введите имя стека');
             return;
         }
-
+        if (!validateName(formData.name)) {
+            setSubmitError(nameError);
+            return;
+        }
         if (!formData.git_branch) {
             setSubmitError('Выберите ветку Git');
             return;
@@ -83,7 +118,8 @@ function CreateStack() {
             creatingStacks.push({
                 name: formData.name,
                 timestamp: Date.now(),
-                type: formData.stack_type
+                type: formData.stack_type,
+                branch: formData.git_branch
             });
             localStorage.setItem('creatingStacks', JSON.stringify(creatingStacks));
 
@@ -95,7 +131,9 @@ function CreateStack() {
                 machine_ip: formData.machine_ip
             });
 
+            setCreatedStackName(formData.name);
             setSuccessMessage(`Стек "${formData.name}" успешно создан! Сборка #${response.data.build_number} запущена.`);
+            setSnackbarOpen(true);
 
             // Очищаем форму
             setFormData({
@@ -119,10 +157,18 @@ function CreateStack() {
     };
 
     return (
-        <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
             <Paper sx={{ p: 4 }}>
-                <Typography variant="h4" gutterBottom>
-                    Создание нового стека
+                <Box display="flex" alignItems="center" gap={1} mb={2}>
+                    <BuildIcon color="primary" fontSize="large" />
+                    <Typography variant="h4">
+                        Создание нового стека
+                    </Typography>
+                </Box>
+
+                <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+                    Создание стека занимает 1-3 минуты. После создания вы будете перенаправлены на главную страницу,
+                    где сможете отслеживать статус создания.
                 </Typography>
 
                 {submitError && (
@@ -132,8 +178,18 @@ function CreateStack() {
                 )}
 
                 {successMessage && (
-                    <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage('Сборка запущена!')}>
+                    <Alert
+                        severity="success"
+                        sx={{ mb: 2 }}
+                        icon={<CheckCircleIcon />}
+                        onClose={() => setSuccessMessage('')}
+                    >
                         {successMessage}
+                        <Box sx={{ mt: 1 }}>
+                            <Link href="/" underline="hover">
+                                Перейти к списку стеков →
+                            </Link>
+                        </Box>
                     </Alert>
                 )}
 
@@ -147,10 +203,14 @@ function CreateStack() {
                     variant="outlined"
                     required
                     disabled={submitting}
-                    helperText="Только латинские буквы, цифры и дефис"
+                    error={!!nameError}
+                    helperText={nameError || "Пример: my-app, test-stack, project-123"}
+                    InputProps={{
+                        sx: { fontFamily: 'monospace' }
+                    }}
                 />
 
-                <FormControl fullWidth margin="normal" required>
+                <FormControl fullWidth margin="normal" required error={!!branchesError}>
                     <InputLabel>Ветка Git</InputLabel>
                     <Select
                         name="git_branch"
@@ -164,7 +224,7 @@ function CreateStack() {
                         </MenuItem>
                         {loadingBranches ? (
                             <MenuItem disabled>
-                                <CircularProgress size={20} /> Загрузка...
+                                <CircularProgress size={20} sx={{ mr: 1 }} /> Загрузка...
                             </MenuItem>
                         ) : branchesError ? (
                             <MenuItem disabled>
@@ -174,6 +234,8 @@ function CreateStack() {
                             branches.map((branch) => (
                                 <MenuItem key={branch} value={branch}>
                                     {branch}
+                                    {branch === 'master' && ' (стабильная)'}
+                                    {branch === 'develop' && ' (разработка)'}
                                 </MenuItem>
                             ))
                         )}
@@ -194,25 +256,70 @@ function CreateStack() {
                         label="Тип стека"
                         disabled={submitting}
                     >
-                        <MenuItem value="full">Полный стек (Laravel + React)</MenuItem>
-                        <MenuItem value="api">Только API</MenuItem>
+                        <MenuItem value="full">
+                            <Box>
+                                <Typography>Полный стек (Laravel + React)</Typography>
+                                <Typography variant="caption" color="textSecondary">
+                                    Включает базу данных, PHP бэкенд и React фронтенд
+                                </Typography>
+                            </Box>
+                        </MenuItem>
+                        <MenuItem value="api">
+                            <Box>
+                                <Typography>Только API</Typography>
+                                <Typography variant="caption" color="textSecondary">
+                                    Только база данных и PHP бэкенд (без фронтенда)
+                                </Typography>
+                            </Box>
+                        </MenuItem>
                     </Select>
                 </FormControl>
 
-                <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+                <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
+                    <Button
+                        variant="outlined"
+                        color="secondary"
+                        size="large"
+                        onClick={() => navigate('/')}
+                        disabled={submitting}
+                        sx={{ flex: 1 }}
+                    >
+                        Отмена
+                    </Button>
                     <Button
                         variant="contained"
                         color="primary"
                         size="large"
                         onClick={handleCreateStack}
-                        disabled={submitting || !formData.name || !formData.git_branch}
-                        startIcon={<BuildIcon />}
-                        sx={{ flex: 1 }}
+                        disabled={submitting || !formData.name || !formData.git_branch || !!nameError}
+                        startIcon={submitting ? <CircularProgress size={20} /> : <BuildIcon />}
+                        sx={{ flex: 2 }}
                     >
-                        {submitting ? <CircularProgress size={24} /> : 'Создать стек'}
+                        {submitting ? 'Создание...' : 'Создать стек'}
                     </Button>
                 </Box>
+
+                {submitting && (
+                    <Box sx={{ mt: 3, textAlign: 'center' }}>
+                        <Typography variant="body2" color="textSecondary">
+                            Стек создается, это может занять 1-3 минуты...
+                        </Typography>
+                        <CircularProgress size={30} sx={{ mt: 1 }} />
+                    </Box>
+                )}
             </Paper>
+
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={6000}
+                onClose={() => setSnackbarOpen(false)}
+                message={`Стек "${createdStackName}" успешно создан!`}
+                action={
+                    <Button color="primary" size="small" onClick={() => navigate('/')}>
+                        Перейти
+                    </Button>
+                }
+            />
         </Container>
     );
 }
