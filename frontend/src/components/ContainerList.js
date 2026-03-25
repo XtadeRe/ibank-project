@@ -31,17 +31,17 @@ function ContainerList() {
     const [stacks, setStacks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [loadingContainers, setLoadingContainers] = useState({});
+    const [creatingStacks, setCreatingStacks] = useState({});
     const [deleteDialog, setDeleteDialog] = useState({ open: false, stackId: null, stackName: '' });
 
-    // Получаем API URL из контекста
     const API_URL = useContext(ApiContext);
 
-    // Загрузка списка стеков из БД и контейнеров из Docker
+    // Загрузка списка стеков
     const fetchStacks = async () => {
         try {
             setLoading(true);
 
-            // Получаем список стеков из Docker Agent
             let stacksFromAgent = [];
             try {
                 const response = await axios.get(`${API_URL}/stacks`);
@@ -50,10 +50,8 @@ function ContainerList() {
                 }
             } catch (err) {
                 console.error('Error fetching stacks:', err);
-                // Продолжаем с пустым массивом
             }
 
-            // Получаем стек из БД для сопоставления id
             let sandboxes = [];
             try {
                 const sandboxesResponse = await axios.get(`${API_URL}/sandboxes`);
@@ -67,10 +65,6 @@ function ContainerList() {
                 stackIdMap[sandbox.name] = sandbox.id;
             });
 
-            // В состоянии
-            const [loadingContainers, setLoadingContainers] = useState({});
-
-// При загрузке
             const containersPromises = stacksFromAgent.map(async (stack) => {
                 setLoadingContainers(prev => ({ ...prev, [stack.name]: true }));
                 try {
@@ -93,24 +87,7 @@ function ContainerList() {
                 }
             });
 
-            // Ждем все промисы, но с таймаутом через Promise.race
-            const timeoutPromise = new Promise((resolve) => {
-                setTimeout(() => {
-                    console.warn('Some requests timed out, continuing with partial data');
-                    resolve(stacksFromAgent.map(stack => ({
-                        ...stack,
-                        id: stackIdMap[stack.name] || null,
-                        name: stack.name,
-                        containers: []
-                    })));
-                }, 8000);
-            });
-
-            const stacksWithContainers = await Promise.race([
-                Promise.all(containersPromises),
-                timeoutPromise
-            ]);
-
+            const stacksWithContainers = await Promise.all(containersPromises);
             setStacks(stacksWithContainers);
             setError('');
         } catch (err) {
@@ -122,26 +99,15 @@ function ContainerList() {
         }
     };
 
-    // Запуск стека
-    const startStack = async (stackId) => {
-        try {
-            await axios.post(`${API_URL}/sandboxes/${stackId}/start`);
-            fetchStacks();
-        } catch (err) {
-            setError('Ошибка запуска стека');
-            console.error(err);
-        }
-    };
-
     // Проверка доступности стека
     const checkStackHealth = async (stackId) => {
+        if (!stackId) {
+            setError('ID стека не найден');
+            return;
+        }
         try {
             const response = await axios.post(`${API_URL}/sandboxes/${stackId}/check-health`);
-
-            // Показываем уведомление о результате
             alert(response.data.message);
-
-            // Обновляем данные, чтобы увидеть изменения в графике
             fetchStacks();
         } catch (err) {
             setError('Ошибка проверки стека');
@@ -149,19 +115,12 @@ function ContainerList() {
         }
     };
 
-    // Остановка стека
-    const stopStack = async (stackId) => {
-        try {
-            await axios.post(`${API_URL}/sandboxes/${stackId}/stop`);
-            fetchStacks();
-        } catch (err) {
-            setError('Ошибка остановки стека');
-            console.error(err);
-        }
-    };
-
-    // Перезапуск стека (перезапускаем все контейнеры стека)
+    // Перезапуск стека
     const restartStack = async (stackId) => {
+        if (!stackId) {
+            setError('ID стека не найден');
+            return;
+        }
         try {
             await axios.post(`${API_URL}/sandboxes/${stackId}/restart`);
             fetchStacks();
@@ -173,10 +132,12 @@ function ContainerList() {
 
     // Удаление стека
     const deleteStack = async () => {
+        if (!deleteDialog.stackName) {
+            setError('Имя стека не найдено');
+            return;
+        }
         try {
-            // Удаляем через новый эндпоинт
             await axios.delete(`${API_URL}/stacks/${deleteDialog.stackName}`);
-
             setDeleteDialog({ open: false, stackId: null, stackName: '' });
             fetchStacks();
         } catch (err) {
@@ -185,14 +146,53 @@ function ContainerList() {
         }
     };
 
-    // Загружаем данные при монтировании
+    // Проверка создаваемых стеков из localStorage
+    useEffect(() => {
+        const checkCreatingStacks = () => {
+            const creating = JSON.parse(localStorage.getItem('creatingStacks') || '[]');
+            const now = Date.now();
+            const activeStacks = creating.filter(stack => now - stack.timestamp < 300000);
+
+            if (activeStacks.length !== creating.length) {
+                localStorage.setItem('creatingStacks', JSON.stringify(activeStacks));
+            }
+
+            const creatingMap = {};
+            activeStacks.forEach(stack => {
+                creatingMap[stack.name] = true;
+            });
+            setCreatingStacks(creatingMap);
+        };
+
+        checkCreatingStacks();
+        const interval = setInterval(checkCreatingStacks, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Удаляем из creatingStacks стеки, которые уже появились
+    useEffect(() => {
+        if (stacks.length > 0) {
+            const existingStackNames = new Set(stacks.map(s => s.name));
+            const creating = JSON.parse(localStorage.getItem('creatingStacks') || '[]');
+            const updated = creating.filter(stack => !existingStackNames.has(stack.name));
+
+            if (updated.length !== creating.length) {
+                localStorage.setItem('creatingStacks', JSON.stringify(updated));
+                setCreatingStacks(prev => {
+                    const newState = { ...prev };
+                    existingStackNames.forEach(name => delete newState[name]);
+                    return newState;
+                });
+            }
+        }
+    }, [stacks]);
+
     useEffect(() => {
         fetchStacks();
         const interval = setInterval(fetchStacks, 20000);
         return () => clearInterval(interval);
     }, []);
 
-    // Получить цвет статуса
     const getStatusColor = (status) => {
         switch(status) {
             case 'running': return 'success';
@@ -203,7 +203,6 @@ function ContainerList() {
         }
     };
 
-    // Статус
     const getStatusText = (status) => {
         switch(status) {
             case 'running': return 'Работает';
@@ -214,7 +213,6 @@ function ContainerList() {
         }
     };
 
-    // Иконка обновления (загрузки стеков)
     if (loading && stacks.length === 0) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -225,7 +223,6 @@ function ContainerList() {
 
     return (
         <Box sx={{ p: 3 }}>
-            {/* Диалог подтверждения удаления */}
             <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, stackId: null, stackName: '' })}>
                 <DialogTitle>Удаление стека</DialogTitle>
                 <DialogContent>
@@ -249,7 +246,7 @@ function ContainerList() {
             </Typography>
 
             {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
+                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
                     {error}
                 </Alert>
             )}
@@ -259,31 +256,57 @@ function ContainerList() {
                     <Grid item xs={12} key={stack.id || stack.name}>
                         <Card>
                             <CardContent>
-                                <Box display="flex" gap={1} mb={1}>
-                                    <Chip
-                                        label={stack.git_branch || 'develop'}
-                                        size="small"
-                                        color={stack.git_branch === 'master' ? 'primary' : 'secondary'}
-                                        variant="outlined"
-                                    />
-                                    <Chip
-                                        label={stack.version || 'v1.0.0'}
-                                        size="small"
-                                        variant="outlined"
-                                    />
+                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                    <Box display="flex" gap={1}>
+                                        <Chip
+                                            label={stack.git_branch || 'develop'}
+                                            size="small"
+                                            color={stack.git_branch === 'master' ? 'primary' : 'secondary'}
+                                            variant="outlined"
+                                        />
+                                        <Chip
+                                            label={stack.version || 'v1.0.0'}
+                                            size="small"
+                                            variant="outlined"
+                                        />
+                                    </Box>
+                                    {creatingStacks[stack.name] && (
+                                        <Chip
+                                            label="Создается..."
+                                            size="small"
+                                            color="info"
+                                            icon={<CircularProgress size={16} />}
+                                        />
+                                    )}
                                 </Box>
+
                                 <Typography variant="h6" gutterBottom>
                                     {stack.name}
                                 </Typography>
 
-                                {loadingContainers[stack.name] ? (
-                                    <Box sx={{ ml: 2, p: 1, textAlign: 'center' }}>
-                                        <CircularProgress size={20} />
+                                {creatingStacks[stack.name] ? (
+                                    <Alert
+                                        severity="info"
+                                        icon={<CircularProgress size={20} />}
+                                        sx={{ mb: 2 }}
+                                    >
+                                        Стек создается... Пожалуйста, подождите. Контейнеры будут отображаться после завершения создания.
+                                    </Alert>
+                                ) : loadingContainers[stack.name] ? (
+                                    <Box sx={{ ml: 2, p: 2, textAlign: 'center' }}>
+                                        <CircularProgress size={24} />
+                                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                                            Загрузка контейнеров...
+                                        </Typography>
                                     </Box>
+                                ) : stack.containers.length === 0 ? (
+                                    <Alert severity="warning" sx={{ mb: 2 }}>
+                                        Контейнеры не найдены. Возможно, стек еще не полностью запущен.
+                                    </Alert>
                                 ) : (
                                     stack.containers.map(container => (
                                         <Box key={container.id} sx={{ ml: 2, mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                                            <Box display="flex" justifyContent="space-between">
+                                            <Box display="flex" justifyContent="space-between" alignItems="center">
                                                 <Typography variant="body2">
                                                     <strong>{container.name.replace(`${stack.name}_`, '')}:</strong> {container.image}
                                                 </Typography>
@@ -309,7 +332,6 @@ function ContainerList() {
                                     </AccordionDetails>
                                 </Accordion>
 
-                                {/* Кнопки управления */}
                                 <Box display="flex" justifyContent="flex-end" mt={2}>
                                     <Button
                                         size="small"
@@ -317,7 +339,7 @@ function ContainerList() {
                                         onClick={() => checkStackHealth(stack.id)}
                                         startIcon={<HealthAndSafetyIcon />}
                                         sx={{ mr: 1 }}
-                                        disabled={!stack.id}
+                                        disabled={!stack.id || creatingStacks[stack.name]}
                                     >
                                         Проверить
                                     </Button>
@@ -327,7 +349,7 @@ function ContainerList() {
                                         onClick={() => restartStack(stack.id)}
                                         startIcon={<RestartAltIcon />}
                                         sx={{ mr: 1 }}
-                                        disabled={!stack.id}
+                                        disabled={!stack.id || creatingStacks[stack.name]}
                                     >
                                         Перезапустить
                                     </Button>
@@ -340,7 +362,7 @@ function ContainerList() {
                                             stackName: stack.name
                                         })}
                                         startIcon={<DeleteOutlined />}
-                                        disabled={!stack.name}
+                                        disabled={!stack.name || creatingStacks[stack.name]}
                                     >
                                         Удалить
                                     </Button>

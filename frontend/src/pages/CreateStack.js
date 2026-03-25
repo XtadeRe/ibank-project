@@ -61,6 +61,7 @@ function CreateStack() {
     };
 
     // Создание стека через Jenkins
+    // Создание стека через Jenkins
     const handleCreateStack = async () => {
         if (!formData.name) {
             setSubmitError('Введите имя стека');
@@ -76,6 +77,15 @@ function CreateStack() {
             setSubmitting(true);
             setSubmitError('');
             setSuccessMessage('');
+
+            // Сохраняем имя создаваемого стека в localStorage
+            const creatingStacks = JSON.parse(localStorage.getItem('creatingStacks') || '[]');
+            creatingStacks.push({
+                name: formData.name,
+                timestamp: Date.now(),
+                type: formData.stack_type
+            });
+            localStorage.setItem('creatingStacks', JSON.stringify(creatingStacks));
 
             // Отправляем запрос в Jenkins
             const response = await axios.post(`${API_URL}/jenkins/deploy`, {
