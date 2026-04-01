@@ -70,7 +70,7 @@ services:
       PMA_ARBITRARY: 1
       UPLOAD_LIMIT: 100M
     networks:
-      - internal
+      - app-network
     depends_on:
       - db
   
