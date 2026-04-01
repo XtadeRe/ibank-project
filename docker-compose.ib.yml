@@ -46,7 +46,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: docker/frontend/Dockerfile.dev
+      dockerfile: docker/frontend/Dockerfile
     container_name: ${STACK_NAME}_frontend
     ports:
       - "${FRONTEND_PORT}:3000"
