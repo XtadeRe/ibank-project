@@ -59,6 +59,21 @@ services:
     networks:
       - app-network
 
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: ${STACK_NAME}_phpmyadmin
+    ports:
+      - "9088:90"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 100M
+    networks:
+      - internal
+    depends_on:
+      - db
+  
 networks:
   app-network:
     driver: bridge
