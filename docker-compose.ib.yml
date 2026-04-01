@@ -63,11 +63,12 @@ services:
     image: phpmyadmin/phpmyadmin:latest
     container_name: ${STACK_NAME}_phpmyadmin
     ports:
-      - "9088:90"
+      - "${PMA_PORT:-9088}:80"
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
       PMA_ARBITRARY: 1
+      PMA_ABSOLUTE_URI: http://localhost:9088/
       UPLOAD_LIMIT: 100M
     networks:
       - app-network
