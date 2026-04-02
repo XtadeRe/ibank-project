@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compass Plus Demo Bank</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .balance {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .balance h2 { font-size: 14px; opacity: 0.9; margin-bottom: 10px; }
+        .balance .amount { font-size: 48px; font-weight: bold; }
+        .buttons { display: flex; gap: 15px; margin-bottom: 30px; }
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover { transform: translateY(-2px); }
+        .deposit { background: #48bb78; color: white; }
+        .withdraw { background: #f56565; color: white; }
+        input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        .history {
+            margin-top: 30px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .history h3 { margin-bottom: 15px; color: #4a5568; }
+        .transaction {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .transaction.deposit { color: #48bb78; }
+        .transaction.withdraw { color: #f56565; }
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 10px;
+            display: none;
+        }
+        .status.success { background: #c6f6d5; color: #22543d; display: block; }
+        .status.error { background: #fed7d7; color: #742a2a; display: block; }
+        .status.info { background: #bee3f8; color: #2c5282; display: block; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🏦 Compass Plus</h1>
+    <div class="subtitle">Демо банк - Java + MySQL</div>
+
+    <div class="balance">
+        <h2>Ваш баланс</h2>
+        <div class="amount" id="balance">$0.00</div>
+    </div>
+
+    <div class="buttons">
+        <button class="deposit" onclick="showAmountInput('deposit')">💰 Пополнить</button>
+        <button class="withdraw" onclick="showAmountInput('withdraw')">💸 Снять</button>
+    </div>
+
+    <div id="amountInput" style="display: none;">
+        <input type="number" id="amount" placeholder="Введите сумму" step="0.01">
+        <div class="buttons">
+            <button onclick="executeTransaction()">Подтвердить</button>
+            <button onclick="hideAmountInput()">Отмена</button>
+        </div>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <div class="history">
+        <h3>📋 История операций</h3>
+        <div id="history"></div>
+    </div>
+</div>
+
+<script>
+    const API_URL = `http://localhost:${window.location.port === '8081' ? '8080' : '8080'}`;
+
+    let currentAction = null;
+
+    async function loadBalance() {
+        try {
+            const response = await fetch(`${API_URL}/api/balance`);
+            const data = await response.json();
+            document.getElementById('balance').innerText = `$${data.balance.toFixed(2)}`;
+        } catch (error) {
+            showStatus('Ошибка загрузки баланса', 'error');
+        }
+    }
+
+    async function loadHistory() {
+        try {
+            const response = await fetch(`${API_URL}/api/transactions`);
+            const transactions = await response.json();
+            const historyDiv = document.getElementById('history');
+            historyDiv.innerHTML = '';
+
+            transactions.slice().reverse().forEach(t => {
+                const div = document.createElement('div');
+                div.className = `transaction ${t.type.toLowerCase()}`;
+                div.innerHTML = `
+                        <span>${t.type === 'DEPOSIT' ? '💰 Пополнение' : '💸 Снятие'}</span>
+                        <span>$${t.amount.toFixed(2)}</span>
+                        <small>${new Date(t.timestamp).toLocaleTimeString()}</small>
+                    `;
+                historyDiv.appendChild(div);
+            });
+        } catch (error) {
+            console.error('Error loading history:', error);
+        }
+    }
+
+    function showAmountInput(action) {
+        currentAction = action;
+        document.getElementById('amountInput').style.display = 'block';
+        document.getElementById('status').style.display = 'none';
+    }
+
+    function hideAmountInput() {
+        document.getElementById('amountInput').style.display = 'none';
+        document.getElementById('amount').value = '';
+        currentAction = null;
+    }
+
+    async function executeTransaction() {
+        const amount = parseFloat(document.getElementById('amount').value);
+
+        if (isNaN(amount) || amount <= 0) {
+            showStatus('Введите корректную сумму', 'error');
+            return;
+        }
+
+        try {
+            const endpoint = currentAction === 'deposit' ? '/api/deposit' : '/api/withdraw';
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: amount })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showStatus(`✅ ${currentAction === 'deposit' ? 'Пополнено' : 'Снято'} $${amount.toFixed(2)}`, 'success');
+                loadBalance();
+                loadHistory();
+                hideAmountInput();
+            } else {
+                showStatus(`❌ ${data.error}`, 'error');
+            }
+        } catch (error) {
+            showStatus('Ошибка соединения с сервером', 'error');
+        }
+    }
+
+    function showStatus(message, type) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.className = `status ${type}`;
+        statusDiv.innerText = message;
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 3000);
+    }
+
+    loadBalance();
+    loadHistory();
+    setInterval(() => { loadBalance(); loadHistory(); }, 10000);
+</script>
+</body>
+</html>
