@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use App\Models\History;
 use App\Models\Sandbox;
 use App\Services\DockerAgentService;
@@ -18,6 +17,62 @@ class DockerAgentController extends Controller
         $this->dockerAgent = new DockerAgentService($dockerAgentUrl);
     }
 
+    /**
+     * Получить список всех стеков
+     */
+    public function getStacks()
+    {
+        try {
+            $stacks = cache()->remember('docker_stacks', 5, function () {
+                return $this->dockerAgent->getStacks();
+            });
+
+            return response()->json([
+                'success' => true,
+                'stacks' => $stacks
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Ошибка получения стеков: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'stacks' => []
+            ], 500);
+        }
+    }
+
+    public function getStacksWithDetails()
+    {
+        try {
+            // Получаем все стеки
+            $stacks = $this->dockerAgent->getStacks();
+
+            // Параллельно получаем контейнеры для всех стеков
+            $stacksWithDetails = [];
+            foreach ($stacks as $stack) {
+                $containers = $this->dockerAgent->getContainersByStack($stack['name']);
+                $stacksWithDetails[] = [
+                    'id' => $stack['id'] ?? null,
+                    'name' => $stack['name'],
+                    'git_branch' => $stack['git_branch'] ?? 'develop',
+                    'version' => $stack['version'] ?? 'v1.0.0',
+                    'containers' => $containers
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'stacks' => $stacksWithDetails
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Ошибка получения стеков с деталями: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'stacks' => []
+            ], 500);
+        }
+    }
     /**
      * Получить все контейнеры
      */
@@ -68,7 +123,6 @@ class DockerAgentController extends Controller
             if ($result['success']) {
                 $containerName = $this->getContainerName($containerId);
                 if ($containerName) {
-                    // Извлекаем имя стека из имени контейнера (до последнего "_" )
                     $stackName = substr($containerName, 0, strrpos($containerName, '_'));
                     $sandbox = Sandbox::where('name', $stackName)->first();
 
@@ -101,7 +155,6 @@ class DockerAgentController extends Controller
         }
     }
 
-
     private function getContainerName($containerId)
     {
         try {
@@ -125,7 +178,6 @@ class DockerAgentController extends Controller
         try {
             $result = $this->dockerAgent->deleteStack($stackName);
 
-            // Удаление папки стека
             $stackDir = "C:/OSPanel/home/sandbox/docker-agent/docker-stacks/{$stackName}";
             if (is_dir($stackDir)) {
                 $this->deleteDirectory($stackDir);
@@ -145,4 +197,26 @@ class DockerAgentController extends Controller
         }
     }
 
+    private function deleteDirectory($dir)
+    {
+        if (!file_exists($dir)) {
+            return true;
+        }
+
+        if (!is_dir($dir)) {
+            return unlink($dir);
+        }
+
+        foreach (scandir($dir) as $item) {
+            if ($item == '.' || $item == '..') {
+                continue;
+            }
+
+            if (!$this->deleteDirectory($dir . DIRECTORY_SEPARATOR . $item)) {
+                return false;
+            }
+        }
+
+        return rmdir($dir);
+    }
 }

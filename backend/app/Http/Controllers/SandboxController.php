@@ -21,7 +21,7 @@ class SandboxController extends Controller
     }
 
     /**
-     * ПОЛУЧИТЬ ВСЕ СТЕКИ
+     * Получить все стеки
      */
     public function index()
     {
@@ -34,20 +34,14 @@ class SandboxController extends Controller
         }
     }
 
+    /**
+     * Создать новый стек
+     */
     public function store(StoreSandboxRequest $request)
     {
         try {
             DB::beginTransaction();
 
-            // Проверяем доступность Docker Agent
-            $ping = $this->dockerAgent->ping();
-            if (!$ping) {
-                return response()->json([
-                    'message' => 'Docker Agent недоступен'
-                ], 503);
-            }
-
-            // Создаем запись в БД
             $sandbox = Sandbox::create([
                 'name' => $request->name,
                 'git_branch' => $request->git_branch,
@@ -64,7 +58,6 @@ class SandboxController extends Controller
                 "Создан стек {$sandbox->name} из ветки {$request->git_branch}"
             );
 
-            // Запускаем стек через Docker Agent
             $result = $this->dockerAgent->startStack(
                 $sandbox->name,
                 $sandbox->git_branch,
@@ -109,15 +102,6 @@ class SandboxController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-
-            if (isset($sandbox)) {
-                History::log(
-                    $sandbox->id,
-                    'create',
-                    "Ошибка: " . $e->getMessage()
-                );
-            }
-
             Log::error('Ошибка создания стека: ' . $e->getMessage());
 
             return response()->json([
@@ -128,171 +112,11 @@ class SandboxController extends Controller
     }
 
     /**
-     * Перезапустить стек
+     * Получить ветки Git
      */
-    /**
-     * Перезапустить стек (перезапускает все контейнеры стека)
-     */
-    public function restart($id)
-    {
-        try {
-            $sandbox = Sandbox::findOrFail($id);
-
-            History::log(
-                $sandbox->id,
-                'restart',
-                "Начало перезапуска стека {$sandbox->name}"
-            );
-
-            // Получаем контейнеры стека
-            $containers = $this->dockerAgent->getContainersByStack($sandbox->name);
-
-            if (empty($containers)) {
-                // Если контейнеров нет, запускаем стек заново
-                $startResult = $this->dockerAgent->startStack(
-                    $sandbox->name,
-                    $sandbox->git_branch,
-                    $sandbox->stack_type
-                );
-
-                if ($startResult['success'] ?? false) {
-                    $sandbox->status = 'running';
-                    $sandbox->save();
-
-                    History::log(
-                        $sandbox->id,
-                        'restart',
-                        "Стек {$sandbox->name} запущен"
-                    );
-
-                    return response()->json([
-                        'message' => 'Стек запущен',
-                        'sandbox' => new SandboxResource($sandbox)
-                    ]);
-                }
-
-                return response()->json([
-                    'message' => 'Не удалось запустить стек',
-                    'error' => $startResult['error'] ?? 'Unknown error'
-                ], 500);
-            }
-
-            // Перезапускаем каждый контейнер стека
-            $restartResults = [];
-            $allSuccess = true;
-
-            foreach ($containers as $container) {
-                Log::info('Обработка контейнера', [
-                    'container' => $container['name'],
-                    'id' => $container['id'],
-                    'state' => $container['state']
-                ]);
-
-                $result = $this->dockerAgent->restartContainer($container['id']);
-
-                $restartResults[] = [
-                    'container' => $container['name'],
-                    'success' => $result['success'] ?? false,
-                    'error' => $result['error'] ?? null
-                ];
-
-                if (!($result['success'] ?? false)) {
-                    $allSuccess = false;
-                }
-            }
-
-            // Проверяем, все ли перезапустились
-            $allSuccess = true;
-            foreach ($restartResults as $result) {
-                if (!$result['success']) {
-                    $allSuccess = false;
-                    break;
-                }
-            }
-
-            if ($allSuccess) {
-                $sandbox->status = 'running';
-                $sandbox->save();
-
-                History::log(
-                    $sandbox->id,
-                    'restart',
-                    "Стек {$sandbox->name} успешно перезапущен"
-                );
-
-                return response()->json([
-                    'message' => 'Стек перезапущен',
-                    'sandbox' => new SandboxResource($sandbox),
-                    'containers' => $restartResults
-                ]);
-            }
-
-            History::log(
-                $sandbox->id,
-                'restart',
-                "Частичный перезапуск стека {$sandbox->name}"
-            );
-
-            return response()->json([
-                'message' => 'Частичный перезапуск стека',
-                'sandbox' => new SandboxResource($sandbox),
-                'containers' => $restartResults
-            ], 207);
-
-        } catch (\Exception $e) {
-            Log::error('Ошибка перезапуска стека: ' . $e->getMessage());
-
-            if (isset($sandbox) && $sandbox->id) {
-                History::log(
-                    $sandbox->id,
-                    'restart',
-                    "Ошибка перезапуска стека: " . $e->getMessage()
-                );
-            }
-
-            return response()->json([
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Переопределяем метод destroy для удаления из Docker
-     */
-    public function destroy($id)
-    {
-        try {
-            $sandbox = Sandbox::findOrFail($id);
-
-            // Удаляем стек из Docker
-            $this->dockerAgent->deleteStack($sandbox->name);
-
-            // Удаляем из БД
-            $sandbox->delete();
-            History::log(
-                $sandbox->id,
-                'delete',
-                "Удаление стека {$sandbox->name} прошло успешно"
-            );
-            return response()->json([
-                'message' => 'Стек успешно удален'
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Ошибка удаления стека: ' . $e->getMessage());
-            History::log(
-                $sandbox->id,
-                'delete',
-                "При удалении стека {$sandbox->name} произошла ошибка:" . $e->getMessage()
-            );
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
-
     public function getBranches()
     {
         try {
-            // Используем существующий метод из DockerAgentService
             $branches = $this->dockerAgent->getBranches();
 
             return response()->json([
@@ -304,15 +128,17 @@ class SandboxController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage(),
-                'branches' => ['master', 'develop'] // Запасной вариант
+                'branches' => ['master', 'develop']
             ], 500);
         }
     }
 
+    /**
+     * Получить статистику доступности
+     */
     public function getUptimeStats($id)
     {
         try {
-            // Ищем стек по ID или по имени
             $sandbox = Sandbox::where('id', $id)->orWhere('name', $id)->first();
 
             if (!$sandbox) {
@@ -322,39 +148,29 @@ class SandboxController extends Controller
                 ], 404);
             }
 
-            // Статистика за последние 24 часа
             $lastDay = now()->subDay();
             $dayChecks = $sandbox->healthChecks()
                 ->where('created_at', '>=', $lastDay)
                 ->get();
 
-            $dayUptime = $this->calculateUptime($dayChecks);
-
-            // Статистика за последние 7 дней
             $lastWeek = now()->subDays(7);
             $weekChecks = $sandbox->healthChecks()
                 ->where('created_at', '>=', $lastWeek)
                 ->get();
 
-            $weekUptime = $this->calculateUptime($weekChecks);
-
-            // Статистика за последние 30 дней
             $lastMonth = now()->subDays(30);
             $monthChecks = $sandbox->healthChecks()
                 ->where('created_at', '>=', $lastMonth)
                 ->get();
 
-            $monthUptime = $this->calculateUptime($monthChecks);
-
-            // Данные для графика (по часам за последние 24 часа)
             $chartData = $this->getChartData($sandbox);
 
             return response()->json([
                 'success' => true,
                 'uptime' => [
-                    'day' => $dayUptime,
-                    'week' => $weekUptime,
-                    'month' => $monthUptime,
+                    'day' => $this->calculateUptime($dayChecks),
+                    'week' => $this->calculateUptime($weekChecks),
+                    'month' => $this->calculateUptime($monthChecks),
                 ],
                 'chart' => $chartData,
                 'total_checks' => $sandbox->healthChecks()->count(),
@@ -368,75 +184,18 @@ class SandboxController extends Controller
         }
     }
 
-    private function calculateUptime($checks)
-    {
-        if ($checks->isEmpty()) {
-            return 0;
-        }
-
-        $available = $checks->where('is_available', true)->count();
-        $total = $checks->count();
-
-        return round(($available / $total) * 100, 2);
-    }
-
-    private function getChartData($sandbox)
-    {
-        // Получаем проверки за последние 24 часа
-        $checks = $sandbox->healthChecks()
-            ->where('created_at', '>=', now()->subHours(24))
-            ->orderBy('created_at', 'asc')
-            ->get();
-
-        // Создаем массив из 24 часов, где последний элемент - текущий час
-        $chartData = [];
-        $now = now();
-
-        // Идем от 23 часов назад до текущего часа
-        for ($i = 23; $i >= 0; $i--) {
-            $hourStart = $now->copy()->subHours($i)->startOfHour();
-            $hourEnd = $now->copy()->subHours($i)->endOfHour();
-
-            // Название часа (например "15:00")
-            $hourLabel = $hourStart->format('H:00');
-
-            // Фильтруем проверки за этот час
-            $hourChecks = $checks->filter(function($check) use ($hourStart, $hourEnd) {
-                return $check->created_at >= $hourStart && $check->created_at <= $hourEnd;
-            });
-
-            $total = $hourChecks->count();
-            $available = $hourChecks->where('is_available', true)->count();
-            $uptime = ($total > 0) ? round(($available / $total) * 100, 2) : 0;
-
-            $chartData[] = [
-                'hour' => $hourLabel,
-                'uptime' => $uptime,
-                'checks' => $total,
-                'available' => $available,
-                'failed' => $total - $available,
-                'timestamp' => $hourStart->timestamp,
-                'isCurrentHour' => ($i === 0) // Помечаем текущий час
-            ];
-        }
-
-        return $chartData;
-    }
-
-
+    /**
+     * Проверить здоровье стека
+     */
     public function checkHealth($id)
     {
         try {
             $sandbox = Sandbox::findOrFail($id);
-
-            // Получаем контейнеры стека
             $containers = $this->dockerAgent->getContainersByStack($sandbox->name);
 
             $isAvailable = true;
             $errorMessage = null;
-            $responseTime = 0;
 
-            // Проверяем каждый контейнер
             foreach ($containers as $container) {
                 if ($container['state'] !== 'running') {
                     $isAvailable = false;
@@ -445,22 +204,14 @@ class SandboxController extends Controller
                 }
             }
 
-            // Сохраняем результат
             $healthCheck = HealthCheck::create([
                 'sandbox_id' => $sandbox->id,
                 'is_available' => $isAvailable,
-                'response_time' => $responseTime,
+                'response_time' => 0,
                 'error_message' => $errorMessage
             ]);
 
-            // Получаем обновленную статистику
             $stats = HealthCheck::getUptimeStats($sandbox->id, 24);
-
-            History::log(
-                $sandbox->id,
-                'health check',
-                "Проверка доступности стека. Стек {$sandbox->name} доступен"
-            );
 
             return response()->json([
                 'success' => true,
@@ -477,5 +228,56 @@ class SandboxController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Вспомогательные методы
+     */
+    private function calculateUptime($checks)
+    {
+        if ($checks->isEmpty()) {
+            return 0;
+        }
+
+        $available = $checks->where('is_available', true)->count();
+        $total = $checks->count();
+
+        return round(($available / $total) * 100, 2);
+    }
+
+    private function getChartData($sandbox)
+    {
+        $checks = $sandbox->healthChecks()
+            ->where('created_at', '>=', now()->subHours(24))
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $chartData = [];
+        $now = now();
+
+        for ($i = 23; $i >= 0; $i--) {
+            $hourStart = $now->copy()->subHours($i)->startOfHour();
+            $hourEnd = $now->copy()->subHours($i)->endOfHour();
+
+            $hourChecks = $checks->filter(function($check) use ($hourStart, $hourEnd) {
+                return $check->created_at >= $hourStart && $check->created_at <= $hourEnd;
+            });
+
+            $total = $hourChecks->count();
+            $available = $hourChecks->where('is_available', true)->count();
+            $uptime = ($total > 0) ? round(($available / $total) * 100, 2) : 0;
+
+            $chartData[] = [
+                'hour' => $hourStart->format('H:00'),
+                'uptime' => $uptime,
+                'checks' => $total,
+                'available' => $available,
+                'failed' => $total - $available,
+                'timestamp' => $hourStart->timestamp,
+                'isCurrentHour' => ($i === 0)
+            ];
+        }
+
+        return $chartData;
     }
 }

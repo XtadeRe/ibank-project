@@ -7,175 +7,61 @@ use Illuminate\Support\Facades\Log;
 
 class DockerAgentService
 {
-    protected $agentUrl;
+    private $baseUrl;
 
-    public function __construct($agentUrl)
+    public function __construct($baseUrl)
     {
-        $this->agentUrl = env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001');
+        $this->baseUrl = $baseUrl;
     }
 
-    public function ping()
+    /**
+     * Получить список стеков
+     */
+    public function getStacks()
     {
         try {
-            $response = Http::timeout(3)->get($this->agentUrl . '/api/health');
-            return $response->json();
-        } catch (\Exception $e) {
-            Log::error('Docker Agent ping failed: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    public function startStack($name, $gitBranch, $stackType)
-    {
-        try {
-            Log::info('Начинаем создание стека через Docker Agent', [
-                'name' => $name,
-                'branch' => $gitBranch,
-                'type' => $stackType,
-                'url' => $this->agentUrl
-            ]);
-
-            // Отправляем запрос в Docker Agent (server.js)
-            $response = Http::timeout(230)
-                ->post($this->agentUrl . '/api/stacks/' . $name . '/up', [
-                    'git_branch' => $gitBranch,
-                    'stackType' => $stackType
-                ]);
-
-            $result = $response->json();
-
-            Log::info('Ответ от Docker Agent', [
-                'success' => $response->successful(),
-                'response' => $result
-            ]);
-
-            if ($response->successful() && isset($result['success']) && $result['success']) {
-                return [
-                    'success' => true,
-                    'data' => $result,
-                    'ports' => $result['ports'] ?? null,
-                    'urls' => $result['urls'] ?? null
-                ];
+            $response = Http::timeout(10)->get($this->baseUrl . '/api/stacks');
+            if ($response->successful()) {
+                return $response->json()['stacks'] ?? [];
             }
-
-            return [
-                'success' => false,
-                'error' => $result['error'] ?? 'Неизвестная ошибка'
-            ];
-
+            return [];
         } catch (\Exception $e) {
-            Log::error('Ошибка запуска стека: ' . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
-        }
-    }
-
-    public function restartContainer($containerId)
-    {
-        try {
-            $response = Http::timeout(30)->post($this->agentUrl . '/api/containers/' . $containerId . '/restart');
-
-            $result = $response->json();
-
-            Log::info('Restart container response', [
-                'containerId' => $containerId,
-                'success' => $response->successful(),
-                'response' => $result
-            ]);
-
-            if ($response->successful() && isset($result['success']) && $result['success']) {
-                return [
-                    'success' => true,
-                    'data' => $result
-                ];
-            }
-
-            return [
-                'success' => false,
-                'error' => $result['error'] ?? 'Unknown error'
-            ];
-        } catch (\Exception $e) {
-            Log::error('Ошибка перезапуска контейнера: ' . $e->getMessage());
-            return ['success' => false, 'error' => $e->getMessage()];
-        }
-    }
-
-    public function getContainers()
-    {
-        try {
-            $response = Http::timeout(5)->get($this->agentUrl . '/api/containers');
-            return $response->json() ?? [];
-        } catch (\Exception $e) {
-            Log::error('Ошибка получения контейнеров: ' . $e->getMessage());
+            Log::error('getStacks error: ' . $e->getMessage());
             return [];
         }
     }
 
-    public function deleteStack($stackName)
+    public function getContainersByStack($stackName)
     {
         try {
-            $response = Http::timeout(30)->post($this->agentUrl . '/api/stacks/' . $stackName . '/delete');
-
+            $response = Http::timeout(10)->get($this->baseUrl . '/api/stacks/' . $stackName . '/info');
             if ($response->successful()) {
-                return [
-                    'success' => true,
-                    'data' => $response->json()
-                ];
+                return $response->json()['containers'] ?? [];
             }
-
-            return [
-                'success' => false,
-                'error' => 'Failed to delete stack: ' . $response->body()
-            ];
+            return [];
         } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
+            Log::error("getContainersByStack for {$stackName} error: " . $e->getMessage());
+            return [];
         }
     }
 
     public function getBranches()
     {
         try {
-            // Получаем ветки из GitHub API
-            $response = Http::timeout(10)->get('https://api.github.com/repos/XtadeRe/ibank-project/branches');
+            $token = config('services.github.token');
 
-            if ($response->successful()) {
-                $branches = array_map(function($branch) {
-                    return $branch['name'];
-                }, $response->json());
-                return $branches;
-            }
+            $response = Http::withToken($token)
+            ->timeout(10)
+                ->get('https://api.github.com/repos/XtadeRe/ibank-project/branches');
 
-            // Fallback на стандартные ветки
-            return ['master', 'develop'];
+            $branches = collect($response->json())->pluck('name')->toArray();
+
+            return $branches;
+
 
         } catch (\Exception $e) {
             Log::error('Ошибка получения веток: ' . $e->getMessage());
             return ['master', 'develop'];
-        }
-    }
-
-    /**
-     * Получить контейнеры по имени стека
-     */
-    public function getContainersByStack($stackName)
-    {
-        try {
-            $allContainers = $this->getContainers();
-
-            // Фильтруем контейнеры, которые принадлежат стеку
-            $stackContainers = array_filter($allContainers, function($container) use ($stackName) {
-                return strpos($container['name'], $stackName . '_') === 0;
-            });
-
-            return array_values($stackContainers);
-        } catch (\Exception $e) {
-            Log::error('Ошибка получения контейнеров стека: ' . $e->getMessage());
-            return [];
         }
     }
 }
