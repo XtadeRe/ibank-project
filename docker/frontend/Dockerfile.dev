@@ -1,0 +1,19 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Копируем package.json и устанавливаем зависимости
+COPY frontend/package*.json ./
+RUN npm install
+
+# Копируем исходный код
+COPY frontend/ ./
+
+# Принимаем переменную окружения
+ARG REACT_APP_API_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+
+EXPOSE 3000
+
+# Запускаем в режиме разработки
+CMD ["npm", "start"]
