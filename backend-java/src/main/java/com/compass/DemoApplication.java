@@ -4,9 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import javax.persistence.*;
-import java.time.LocalDateTime;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import javax.sql.DataSource;
+import java.sql.Connection;
 import java.util.*;
 
 @SpringBootApplication
@@ -16,42 +17,6 @@ public class DemoApplication {
     }
 }
 
-// Entity для операций
-@Entity
-@Table(name = "transactions")
-class Transaction {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String type;
-    private Double amount;
-    private LocalDateTime timestamp;
-
-    public Transaction() {}
-
-    public Transaction(String type, Double amount) {
-        this.type = type;
-        this.amount = amount;
-        this.timestamp = LocalDateTime.now();
-    }
-
-    // Геттеры
-    public Long getId() { return id; }
-    public String getType() { return type; }
-    public Double getAmount() { return amount; }
-    public LocalDateTime getTimestamp() { return timestamp; }
-
-    // Сеттеры (нужны для JPA)
-    public void setId(Long id) { this.id = id; }
-    public void setType(String type) { this.type = type; }
-    public void setAmount(Double amount) { this.amount = amount; }
-    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
-}
-
-// Repository
-interface TransactionRepository extends JpaRepository<Transaction, Long> {}
-
-// REST Controller
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
@@ -78,7 +43,11 @@ class BankController {
         }
 
         balance += amount;
-        Transaction transaction = new Transaction("DEPOSIT", amount);
+
+        Transaction transaction = new Transaction();
+        transaction.setType("DEPOSIT");
+        transaction.setAmount(amount);
+        transaction.setTimestamp(new Date());
         transactionRepository.save(transaction);
 
         Map<String, Object> response = new HashMap<>();
@@ -99,7 +68,11 @@ class BankController {
         }
 
         balance -= amount;
-        Transaction transaction = new Transaction("WITHDRAW", amount);
+
+        Transaction transaction = new Transaction();
+        transaction.setType("WITHDRAW");
+        transaction.setAmount(amount);
+        transaction.setTimestamp(new Date());
         transactionRepository.save(transaction);
 
         Map<String, Object> response = new HashMap<>();
@@ -127,5 +100,23 @@ class BankController {
         response.put("success", false);
         response.put("error", message);
         return response;
+    }
+}
+
+// DatabaseChecker Component
+@Component
+class DatabaseChecker {
+
+    @Autowired
+    private DataSource dataSource;
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void checkDatabase() {
+        try (Connection conn = dataSource.getConnection()) {
+            System.out.println("✅ Database connected successfully!");
+            System.out.println("   URL: " + conn.getMetaData().getURL());
+        } catch (Exception e) {
+            System.err.println("❌ Database connection failed: " + e.getMessage());
+        }
     }
 }
