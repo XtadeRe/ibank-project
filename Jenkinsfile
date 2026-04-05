@@ -11,9 +11,7 @@ pipeline {
         stage('Deploy Stack') {
             steps {
                 script {
-                    // Используйте IP вашей Windows машины
-                    def agentUrl = 'http://192.168.1.100:3001'  // ЗАМЕНИТЕ НА ВАШ IP
-
+                    def agentUrl = 'http://host.docker.internal:3001'
                     def response = httpRequest(
                         url: "${agentUrl}/api/stacks/${params.STACK_NAME}/up",
                         httpMode: 'POST',
@@ -23,9 +21,7 @@ pipeline {
                                 "git_branch": "${params.BRANCH}",
                                 "stackType": "${params.STACK_TYPE}"
                             }
-                        """,
-                        validResponseCodes: '200,201,202',
-                        timeout: 300000
+                        """
                     )
                     println("Response: ${response.content}")
                 }
