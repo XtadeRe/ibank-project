@@ -2,7 +2,10 @@ package com.compass;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import java.util.*;
 
 @SpringBootApplication
@@ -10,11 +13,26 @@ public class DemoApplication {
     public static void main(String[] args) {
         SpringApplication.run(DemoApplication.class, args);
     }
+
+    // Добавьте этот метод для глобальной настройки CORS
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/**")
+                        .allowedOrigins("*")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedHeaders("*")
+                        .allowCredentials(false);
+            }
+        };
+    }
 }
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS})
 class BankController {
 
     private Map<String, Double> accounts = new HashMap<>();
@@ -75,6 +93,12 @@ class BankController {
         response.put("status", "ok");
         response.put("service", "Compass Plus Demo Bank");
         return response;
+    }
+
+    @GetMapping("/transactions")
+    public List<Map<String, Object>> getTransactions() {
+        // Временное решение - возвращаем пустой список
+        return new ArrayList<>();
     }
 
     private Map<String, Object> errorResponse(String message) {
