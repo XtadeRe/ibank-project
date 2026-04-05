@@ -3,11 +3,6 @@ package com.compass;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import javax.sql.DataSource;
-import java.sql.Connection;
 import java.util.*;
 
 @SpringBootApplication
@@ -22,15 +17,16 @@ public class DemoApplication {
 @CrossOrigin(origins = "*")
 class BankController {
 
-    @Autowired
-    private TransactionRepository transactionRepository;
+    private Map<String, Double> accounts = new HashMap<>();
 
-    private Double balance = 1000.00;
+    public BankController() {
+        accounts.put("balance", 1000.0);
+    }
 
     @GetMapping("/balance")
     public Map<String, Object> getBalance() {
         Map<String, Object> response = new HashMap<>();
-        response.put("balance", balance);
+        response.put("balance", accounts.get("balance"));
         response.put("status", "success");
         return response;
     }
@@ -42,17 +38,12 @@ class BankController {
             return errorResponse("Invalid amount");
         }
 
-        balance += amount;
-
-        Transaction transaction = new Transaction();
-        transaction.setType("DEPOSIT");
-        transaction.setAmount(amount);
-        transaction.setTimestamp(new Date());
-        transactionRepository.save(transaction);
+        Double currentBalance = accounts.get("balance");
+        accounts.put("balance", currentBalance + amount);
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
-        response.put("balance", balance);
+        response.put("balance", accounts.get("balance"));
         response.put("message", "Deposited " + amount);
         return response;
     }
@@ -63,28 +54,19 @@ class BankController {
         if (amount == null || amount <= 0) {
             return errorResponse("Invalid amount");
         }
-        if (amount > balance) {
+
+        Double currentBalance = accounts.get("balance");
+        if (amount > currentBalance) {
             return errorResponse("Insufficient funds");
         }
 
-        balance -= amount;
-
-        Transaction transaction = new Transaction();
-        transaction.setType("WITHDRAW");
-        transaction.setAmount(amount);
-        transaction.setTimestamp(new Date());
-        transactionRepository.save(transaction);
+        accounts.put("balance", currentBalance - amount);
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
-        response.put("balance", balance);
+        response.put("balance", accounts.get("balance"));
         response.put("message", "Withdrawn " + amount);
         return response;
-    }
-
-    @GetMapping("/transactions")
-    public List<Transaction> getTransactions() {
-        return transactionRepository.findAll();
     }
 
     @GetMapping("/health")
@@ -100,23 +82,5 @@ class BankController {
         response.put("success", false);
         response.put("error", message);
         return response;
-    }
-}
-
-// DatabaseChecker Component
-@Component
-class DatabaseChecker {
-
-    @Autowired
-    private DataSource dataSource;
-
-    @EventListener(ApplicationReadyEvent.class)
-    public void checkDatabase() {
-        try (Connection conn = dataSource.getConnection()) {
-            System.out.println("✅ Database connected successfully!");
-            System.out.println("   URL: " + conn.getMetaData().getURL());
-        } catch (Exception e) {
-            System.err.println("❌ Database connection failed: " + e.getMessage());
-        }
     }
 }
