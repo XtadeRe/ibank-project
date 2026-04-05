@@ -4,6 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -26,7 +27,6 @@ class Transaction {
     private Double amount;
     private LocalDateTime timestamp;
 
-    // Конструкторы
     public Transaction() {}
 
     public Transaction(String type, Double amount) {
@@ -35,7 +35,6 @@ class Transaction {
         this.timestamp = LocalDateTime.now();
     }
 
-    // Геттеры
     public Long getId() { return id; }
     public String getType() { return type; }
     public Double getAmount() { return amount; }
