@@ -4,7 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import org.springframework.data.jpa.repository.JpaRepository;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -35,10 +35,17 @@ class Transaction {
         this.timestamp = LocalDateTime.now();
     }
 
+    // Геттеры
     public Long getId() { return id; }
     public String getType() { return type; }
     public Double getAmount() { return amount; }
     public LocalDateTime getTimestamp() { return timestamp; }
+
+    // Сеттеры (нужны для JPA)
+    public void setId(Long id) { this.id = id; }
+    public void setType(String type) { this.type = type; }
+    public void setAmount(Double amount) { this.amount = amount; }
+    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
 }
 
 // Repository
@@ -71,7 +78,8 @@ class BankController {
         }
 
         balance += amount;
-        transactionRepository.save(new Transaction("DEPOSIT", amount));
+        Transaction transaction = new Transaction("DEPOSIT", amount);
+        transactionRepository.save(transaction);
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
@@ -91,7 +99,8 @@ class BankController {
         }
 
         balance -= amount;
-        transactionRepository.save(new Transaction("WITHDRAW", amount));
+        Transaction transaction = new Transaction("WITHDRAW", amount);
+        transactionRepository.save(transaction);
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
