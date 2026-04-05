@@ -6,6 +6,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.JpaRepository;
+import javax.persistence.*;
 import java.util.*;
 
 @SpringBootApplication
@@ -14,7 +17,6 @@ public class DemoApplication {
         SpringApplication.run(DemoApplication.class, args);
     }
 
-    // Добавьте этот метод для глобальной настройки CORS
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
@@ -23,30 +25,62 @@ public class DemoApplication {
                 registry.addMapping("/**")
                         .allowedOrigins("*")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                        .allowedHeaders("*")
-                        .allowCredentials(false);
+                        .allowedHeaders("*");
             }
         };
     }
 }
 
+// Модель транзакции (таблица в БД)
+@Entity
+@Table(name = "transactions")
+class Transaction {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String type;
+    private Double amount;
+    private Date timestamp;
+
+    public Transaction() {}
+
+    public Transaction(String type, Double amount) {
+        this.type = type;
+        this.amount = amount;
+        this.timestamp = new Date();
+    }
+
+    // Геттеры
+    public Long getId() { return id; }
+    public String getType() { return type; }
+    public Double getAmount() { return amount; }
+    public Date getTimestamp() { return timestamp; }
+}
+
+// Репозиторий для работы с БД
+interface TransactionRepository extends JpaRepository<Transaction, Long> {}
+
+// Контроллер
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS})
+@CrossOrigin(origins = "*")
 class BankController {
 
-    private Map<String, Double> accounts = new HashMap<>();
+    @Autowired
+    private TransactionRepository transactionRepository;
 
-    public BankController() {
-        accounts.put("balance", 1000.0);
-    }
+    private double balance = 1000.0;
 
     @GetMapping("/balance")
     public Map<String, Object> getBalance() {
         Map<String, Object> response = new HashMap<>();
-        response.put("balance", accounts.get("balance"));
-        response.put("status", "success");
+        response.put("balance", balance);
         return response;
+    }
+
+    @GetMapping("/transactions")
+    public List<Transaction> getTransactions() {
+        return transactionRepository.findAll();
     }
 
     @PostMapping("/deposit")
@@ -56,13 +90,12 @@ class BankController {
             return errorResponse("Invalid amount");
         }
 
-        Double currentBalance = accounts.get("balance");
-        accounts.put("balance", currentBalance + amount);
+        balance += amount;
+        transactionRepository.save(new Transaction("DEPOSIT", amount));
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
-        response.put("balance", accounts.get("balance"));
-        response.put("message", "Deposited " + amount);
+        response.put("balance", balance);
         return response;
     }
 
@@ -72,18 +105,16 @@ class BankController {
         if (amount == null || amount <= 0) {
             return errorResponse("Invalid amount");
         }
-
-        Double currentBalance = accounts.get("balance");
-        if (amount > currentBalance) {
+        if (amount > balance) {
             return errorResponse("Insufficient funds");
         }
 
-        accounts.put("balance", currentBalance - amount);
+        balance -= amount;
+        transactionRepository.save(new Transaction("WITHDRAW", amount));
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
-        response.put("balance", accounts.get("balance"));
-        response.put("message", "Withdrawn " + amount);
+        response.put("balance", balance);
         return response;
     }
 
@@ -91,14 +122,7 @@ class BankController {
     public Map<String, String> health() {
         Map<String, String> response = new HashMap<>();
         response.put("status", "ok");
-        response.put("service", "Compass Plus Demo Bank");
         return response;
-    }
-
-    @GetMapping("/transactions")
-    public List<Map<String, Object>> getTransactions() {
-        // Временное решение - возвращаем пустой список
-        return new ArrayList<>();
     }
 
     private Map<String, Object> errorResponse(String message) {
