@@ -124,7 +124,11 @@
 </div>
 
 <script>
-    const API_URL = `http://localhost:${window.location.port === '8081' ? '8080' : '8080'}`;
+    const API_URL = window.location.port === '8081'
+        ? 'http://localhost:8145'  // Замените 8145 на ваш APP_PORT
+        : `http://localhost:${window.location.port}`;
+
+    console.log('API_URL:', API_URL);
 
     let currentAction = null;
 
