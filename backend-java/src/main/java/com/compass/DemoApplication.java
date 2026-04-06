@@ -24,14 +24,13 @@ public class DemoApplication {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
                         .allowedOrigins("*")
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedMethods("*")
                         .allowedHeaders("*");
             }
         };
     }
 }
 
-// Модель транзакции (таблица в БД)
 @Entity
 @Table(name = "transactions")
 class Transaction {
@@ -43,32 +42,25 @@ class Transaction {
     private Date timestamp;
 
     public Transaction() {}
-
     public Transaction(String type, Double amount) {
         this.type = type;
         this.amount = amount;
         this.timestamp = new Date();
     }
-
-    // Геттеры
     public Long getId() { return id; }
     public String getType() { return type; }
     public Double getAmount() { return amount; }
     public Date getTimestamp() { return timestamp; }
 }
 
-// Репозиторий для работы с БД
 interface TransactionRepository extends JpaRepository<Transaction, Long> {}
 
-// Контроллер
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
 class BankController {
-
     @Autowired
     private TransactionRepository transactionRepository;
-
     private double balance = 1000.0;
 
     @GetMapping("/balance")
@@ -89,10 +81,8 @@ class BankController {
         if (amount == null || amount <= 0) {
             return errorResponse("Invalid amount");
         }
-
         balance += amount;
         transactionRepository.save(new Transaction("DEPOSIT", amount));
-
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("balance", balance);
@@ -108,10 +98,8 @@ class BankController {
         if (amount > balance) {
             return errorResponse("Insufficient funds");
         }
-
         balance -= amount;
         transactionRepository.save(new Transaction("WITHDRAW", amount));
-
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("balance", balance);

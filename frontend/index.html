@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Compass Bank</title>
 </head>
 <body>
@@ -24,7 +25,8 @@
 </div>
 
 <script>
-    const API_URL = 'http://localhost:8120'; // Замени на свой порт
+    // Порт будет заменен сервером автоматически
+    const API_URL = 'http://localhost:{{APP_PORT}}';
 
     async function loadBalance() {
         const res = await fetch(`${API_URL}/api/balance`);
