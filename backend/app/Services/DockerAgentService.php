@@ -48,20 +48,92 @@ class DockerAgentService
     public function getBranches()
     {
         try {
+            // GitHub API с токеном
             $token = config('services.github.token');
 
-            $response = Http::withToken($token)
-            ->timeout(10)
-                ->get('https://api.github.com/repos/XtadeRe/ibank-project/branches');
+            $response = Http::withOptions([
+                'verify' => false, // Отключаем SSL верификацию для локальной разработки
+            ])->timeout(10);
 
-            $branches = collect($response->json())->pluck('name')->toArray();
+            if ($token) {
+                $response = $response->withToken($token);
+            }
 
-            return $branches;
+            $response = $response->get('https://api.github.com/repos/XtadeRe/ibank-project/branches');
 
+            if ($response->successful()) {
+                $branches = collect($response->json())->pluck('name')->toArray();
+
+                if (!empty($branches)) {
+                    Log::info('GitHub branches loaded: ' . count($branches));
+                    return $branches;
+                }
+            }
+
+            // Если GitHub API не работает, используем Git команду
+            return $this->getBranchesFromGit();
 
         } catch (\Exception $e) {
-            Log::error('Ошибка получения веток: ' . $e->getMessage());
-            return ['master', 'develop'];
+            Log::error('Ошибка получения веток из GitHub: ' . $e->getMessage());
+            return $this->getBranchesFromGit();
         }
+    }
+
+    /**
+     * Получить ветки через Git команду
+     */
+    private function getBranchesFromGit()
+    {
+        try {
+            $tempDir = storage_path('app/temp_repo_' . time());
+
+            // Клонируем репозиторий (только для получения веток)
+            $cloneCmd = "git clone --depth 1 https://github.com/XtadeRe/ibank-project.git {$tempDir} 2>&1";
+            exec($cloneCmd, $output, $returnCode);
+
+            if ($returnCode !== 0) {
+                throw new \Exception('Failed to clone repository');
+            }
+
+            // Получаем список веток
+            $branchesCmd = "cd {$tempDir} && git branch -r";
+            exec($branchesCmd, $branchesOutput);
+
+            // Удаляем временную папку
+            exec("rm -rf {$tempDir}");
+
+            // Парсим ветки
+            $branches = [];
+            foreach ($branchesOutput as $line) {
+                $branch = trim(str_replace('origin/', '', $line));
+                if ($branch && !str_contains($branch, 'HEAD') && $branch !== '') {
+                    $branches[] = $branch;
+                }
+            }
+
+            $branches = array_unique($branches);
+
+            if (empty($branches)) {
+                return ['main', 'master', 'develop', 'createStack'];
+            }
+
+            Log::info('Git branches loaded: ' . count($branches));
+            return array_values($branches);
+
+        } catch (\Exception $e) {
+            Log::error('Ошибка получения веток через Git: ' . $e->getMessage());
+            return ['main', 'master', 'develop', 'createStack'];
+        }
+    }
+
+    /**
+     * Получить ветки из кэша или фиксированный список
+     */
+    public function getBranchesCached()
+    {
+        // Используем кэш для уменьшения количества запросов
+        return \Illuminate\Support\Facades\Cache::remember('github_branches', 3600, function () {
+            return $this->getBranches();
+        });
     }
 }

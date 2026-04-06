@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Sandbox;
 use App\Services\DockerAgentService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
@@ -64,13 +65,36 @@ class DashboardController extends Controller
         }
     }
 
-    public function getBranchData() {
+    public function getBranchData()
+    {
+        try {
+            $branchesData = $this->dockerAgent->getBranchesCached();
 
-        $branchesData = $this->dockerAgent->getBranches();
+            if (empty($branchesData) || !is_array($branchesData)) {
+                $branchesData = ['master', 'develop', 'createStack'];
+            }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $branchesData
-        ]);
+            $branchesData = array_filter($branchesData, function($branch) {
+                return $branch !== null && !empty($branch);
+            });
+
+            $branchesData = array_values($branchesData);
+
+            Log::info('Branch data fetched: ' . count($branchesData) . ' branches');
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $branchesData
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error getting branch data: ' . $e->getMessage());
+
+            return response()->json([
+                'status' => 'success',
+                'data' => ['master', 'develop', 'createStack'],
+                'warning' => 'Using default branches'
+            ]);
+        }
     }
 }
