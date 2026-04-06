@@ -75,9 +75,26 @@ function ContainerList() {
     // Проверка статуса создаваемых стеков из localStorage
     useEffect(() => {
         const checkCreatingStacks = () => {
+            // 1. Берем то, что сейчас в памяти (уже загруженные стеки с сервера)
+            const currentStacksNames = stacks.map(s => s.name);
+
+            // 2. Берем список "в процессе" из localStorage
             const creating = JSON.parse(localStorage.getItem('creatingStacks') || '[]');
             const now = Date.now();
-            const activeStacks = creating.filter(stack => now - stack.timestamp < 300000);
+
+            // 3. Фильтруем: оставляем только те, что:
+            // - Младше 5 минут
+            // - И КОТОРЫХ ЕЩЕ НЕТ в списке готовых стеков (currentStacksNames)
+            const activeStacks = creating.filter(stack => {
+                const isExpired = now - stack.timestamp > 300000;
+                const isAlreadyDone = currentStacksNames.includes(stack.name);
+                return !isExpired && !isAlreadyDone;
+            });
+
+            // 4. Обновляем localStorage, чтобы при перезагрузке лишнее не всплыло
+            if (activeStacks.length !== creating.length) {
+                localStorage.setItem('creatingStacks', JSON.stringify(activeStacks));
+            }
 
             const creatingMap = {};
             activeStacks.forEach(stack => {
@@ -87,9 +104,9 @@ function ContainerList() {
         };
 
         checkCreatingStacks();
-        const interval = setInterval(checkCreatingStacks, 5000);
-        return () => clearInterval(interval);
-    }, []);
+        // Добавляем stacks в зависимости, чтобы срабатывало сразу после fetchDashboardData
+    }, [stacks]);
+
 
     // Загружаем данные при монтировании
     useEffect(() => {
