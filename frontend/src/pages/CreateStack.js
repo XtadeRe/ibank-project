@@ -174,6 +174,7 @@ function CreateStack() {
                         <MenuItem value="full">Интернет банк (Full)</MenuItem>
                         <MenuItem value="api">Backend сервер (API + DB)</MenuItem>
                         <MenuItem value="db">База данных (MySQL)</MenuItem>
+                        <MenuItem value="compass">Compass (Java + Front)</MenuItem>
                     </Select>
                 </FormControl>
 
