@@ -171,10 +171,9 @@ function CreateStack() {
                         label="Тип стека"
                         disabled={submitting}
                     >
-                        <MenuItem value="full">Интернет банк (Full)</MenuItem>
+                        <MenuItem value="stack">Интернет банк (Full)</MenuItem>
                         <MenuItem value="api">Backend сервер (API + DB)</MenuItem>
                         <MenuItem value="db">База данных (MySQL)</MenuItem>
-                        <MenuItem value="compass">Compass (Java + Front)</MenuItem>
                     </Select>
                 </FormControl>
 
