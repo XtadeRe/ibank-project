@@ -26,7 +26,7 @@
 
 <script>
     // Порт будет заменен сервером автоматически
-    const API_URL = 'http://localhost:{{APP_PORT}}';
+    const API_URL = 'http://localhost:8104';
 
     async function loadBalance() {
         const res = await fetch(`${API_URL}/api/balance`);
