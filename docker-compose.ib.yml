@@ -51,7 +51,7 @@ services:
     ports:
       - "${FRONTEND_PORT}:3000"
     volumes:
-      - ../frontend:/app
+      - ../../frontend:/app
       - /app/node_modules
     environment:
       - REACT_APP_API_URL=http://localhost:${WEB_PORT}/api
