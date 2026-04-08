@@ -42,7 +42,6 @@ function ContainerList() {
 
     const API_URL = useContext(ApiContext);
 
-    // ОДИН запрос для всей страницы
     const fetchDashboardData = useCallback(async (showRefresh = false) => {
         if (showRefresh) setRefreshing(true);
 
@@ -50,7 +49,6 @@ function ContainerList() {
             setLoading(true);
             const startTime = performance.now();
 
-            // Все данные за 1 запрос!
             const response = await axios.get(`${API_URL}/dashboard-data`, {
                 timeout: 30000
             });
@@ -58,40 +56,31 @@ function ContainerList() {
             if (response.data.success) {
                 setStacks(response.data.stacks);
                 setLastUpdate(new Date());
-                console.log(`✅ Загружено ${response.data.stacks.length} стеков за ${response.data.duration_ms || (performance.now() - startTime)}ms`);
+                console.log(`Loaded ${response.data.stacks.length} stacks in ${response.data.duration_ms || (performance.now() - startTime)}ms`);
             } else {
-                setError(response.data.error || 'Ошибка загрузки');
+                setError(response.data.error || 'Load error');
             }
-
         } catch (err) {
             console.error('Fetch error:', err);
-            setError('Ошибка подключения к серверу');
+            setError('Server connection error');
         } finally {
             setLoading(false);
             if (showRefresh) setRefreshing(false);
         }
     }, [API_URL]);
 
-    // Проверка статуса создаваемых стеков из localStorage
     useEffect(() => {
         const checkCreatingStacks = () => {
-            // 1. Берем то, что сейчас в памяти (уже загруженные стеки с сервера)
             const currentStacksNames = stacks.map(s => s.name);
-
-            // 2. Берем список "в процессе" из localStorage
             const creating = JSON.parse(localStorage.getItem('creatingStacks') || '[]');
             const now = Date.now();
 
-            // 3. Фильтруем: оставляем только те, что:
-            // - Младше 5 минут
-            // - И КОТОРЫХ ЕЩЕ НЕТ в списке готовых стеков (currentStacksNames)
             const activeStacks = creating.filter(stack => {
                 const isExpired = now - stack.timestamp > 300000;
                 const isAlreadyDone = currentStacksNames.includes(stack.name);
                 return !isExpired && !isAlreadyDone;
             });
 
-            // 4. Обновляем localStorage, чтобы при перезагрузке лишнее не всплыло
             if (activeStacks.length !== creating.length) {
                 localStorage.setItem('creatingStacks', JSON.stringify(activeStacks));
             }
@@ -104,15 +93,11 @@ function ContainerList() {
         };
 
         checkCreatingStacks();
-        // Добавляем stacks в зависимости, чтобы срабатывало сразу после fetchDashboardData
     }, [stacks]);
 
-
-    // Загружаем данные при монтировании
     useEffect(() => {
         fetchDashboardData();
 
-        // Обновляем каждые 30 секунд (можно увеличить до 60)
         const interval = setInterval(() => {
             fetchDashboardData();
         }, 30000);
@@ -122,36 +107,34 @@ function ContainerList() {
 
     const checkStackHealth = async (stackId, stackName) => {
         if (!stackId) {
-            setError('ID стека не найден');
+            setError('Stack ID not found');
             return;
         }
         try {
             await axios.post(`${API_URL}/sandboxes/${stackId}/check-health`);
-            // Не перезагружаем всё, просто показываем уведомление
-            setError('Проверка выполнена');
+            setError('Check completed');
             setTimeout(() => setError(''), 3000);
         } catch (err) {
-            setError('Ошибка проверки стека');
+            setError('Stack check error');
         }
     };
 
     const restartStack = async (stackId, stackName) => {
         if (!stackId) {
-            setError('ID стека не найден');
+            setError('Stack ID not found');
             return;
         }
         try {
             await axios.post(`${API_URL}/sandboxes/${stackId}/restart`);
-            // Ждем и обновляем данные
             setTimeout(() => fetchDashboardData(), 3000);
         } catch (err) {
-            setError('Ошибка перезапуска стека');
+            setError('Stack restart error');
         }
     };
 
     const deleteStack = async () => {
         if (!deleteDialog.stackName) {
-            setError('Имя стека не найдено');
+            setError('Stack name not found');
             return;
         }
         try {
@@ -159,7 +142,7 @@ function ContainerList() {
             setDeleteDialog({ open: false, stackId: null, stackName: '' });
             fetchDashboardData();
         } catch (err) {
-            setError('Ошибка удаления стека');
+            setError('Stack deletion error');
         }
     };
 
@@ -179,9 +162,11 @@ function ContainerList() {
 
     const getStatusText = (status) => {
         switch(status) {
-            case 'running': return 'Работает';
+            case 'running': return 'Запущен';
             case 'partial': return 'Частично';
             case 'stopped': return 'Остановлен';
+            case 'created': return 'Ожидает запуска'
+            case 'exited': return 'Остановлен';
             case 'failed': return 'Ошибка';
             default: return status;
         }
@@ -199,7 +184,7 @@ function ContainerList() {
 
     if (loading && stacks.length === 0) {
         return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+            <Box display="flex" justifyContent="center" alignItems="center">
                 <CircularProgress />
             </Box>
         );
@@ -208,33 +193,33 @@ function ContainerList() {
     return (
         <Box sx={{ p: 3, maxWidth: '1000px', mx: 'auto' }}>
             <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, stackId: null, stackName: '' })}>
-                <DialogTitle>Удаление стека</DialogTitle>
+                <DialogTitle>Delete Stack</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
-                        Вы уверены, что хотите удалить стек "{deleteDialog.stackName}"?
+                        Are you sure you want to delete the stack "{deleteDialog.stackName}"?
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setDeleteDialog({ open: false, stackId: null, stackName: '' })}>
-                        Отмена
+                        Cancel
                     </Button>
                     <Button onClick={deleteStack} color="error" variant="contained">
-                        Удалить
+                        Delete
                     </Button>
                 </DialogActions>
             </Dialog>
 
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h4">
-                    Управление стеками
+                    Менеджмент стеков
                 </Typography>
                 <Box display="flex" alignItems="center" gap={2}>
                     {lastUpdate && (
                         <Typography variant="caption" color="textSecondary">
-                            Обновлено: {lastUpdate.toLocaleTimeString()}
+                            Updated: {lastUpdate.toLocaleTimeString()}
                         </Typography>
                     )}
-                    <Tooltip title="Обновить список">
+                    <Tooltip title="Refresh list">
                         <IconButton onClick={handleManualRefresh} disabled={refreshing}>
                             <RefreshIcon />
                         </IconButton>
@@ -243,7 +228,7 @@ function ContainerList() {
             </Box>
 
             {error && (
-                <Alert severity={error.includes('выполнена') ? 'success' : 'error'}
+                <Alert severity={error.includes('completed') ? 'success' : 'error'}
                        sx={{ mb: 2 }} onClose={() => setError('')}>
                     {error}
                 </Alert>
@@ -252,7 +237,7 @@ function ContainerList() {
             {Object.keys(creatingStacks).length > 0 && (
                 <Paper sx={{ p: 2, mb: 3, bgcolor: '#e3f2fd' }}>
                     <Typography variant="subtitle1" gutterBottom>
-                        🚀 Стеки в процессе создания: {Object.keys(creatingStacks).join(', ')}
+                        Creating stacks: {Object.keys(creatingStacks).join(', ')}
                     </Typography>
                     <LinearProgress sx={{ mt: 1 }} />
                 </Paper>
@@ -264,10 +249,10 @@ function ContainerList() {
                 {stacks.map((stack) => {
                     const status = getStackStatus(stack);
                     return (
-                        <Grid item xs={12} key={stack.id || stack.name}>
+                        <Grid width="100%" key={stack.id || stack.name}>
                             <Card>
                                 <CardContent>
-                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                    <Box display="flex" justifyContent="space-between" alignItems="center">
                                         <Box display="flex" gap={1}>
                                             <Chip
                                                 label={stack.git_branch || 'develop'}
@@ -309,7 +294,7 @@ function ContainerList() {
 
                                     <Accordion sx={{ mt: 2 }}>
                                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                            <Typography>Статистика доступности</Typography>
+                                            <Typography>Статистика работы</Typography>
                                         </AccordionSummary>
                                         <AccordionDetails sx={{ overflowX: 'auto', p: 0 }}>
                                             <Box sx={{ minWidth: '600px', width: '100%' }}>
@@ -340,7 +325,7 @@ function ContainerList() {
                                             sx={{ mr: 1 }}
                                             disabled={!stack.id}
                                         >
-                                            Перезапустить
+                                            Перезапуск
                                         </Button>
                                         <Button
                                             size="small"
@@ -365,10 +350,10 @@ function ContainerList() {
             {stacks.length === 0 && !loading && Object.keys(creatingStacks).length === 0 && (
                 <Paper sx={{ p: 3, textAlign: 'center' }}>
                     <Typography variant="body1" color="textSecondary" gutterBottom>
-                        Нет созданных стеков
+                        No stacks created
                     </Typography>
                     <Button variant="contained" color="primary" component="a" href="/create">
-                        Создать новый стек
+                        Create New Stack
                     </Button>
                 </Paper>
             )}

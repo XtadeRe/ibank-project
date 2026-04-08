@@ -26,22 +26,28 @@ function CreateStack() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
+
     useEffect(() => {
         const fetchBranches = async () => {
             try {
                 const response = await axios.get(`${API_URL}/branch-data`);
-                setBranches(response.data.data || []);
+                const allBranches = response.data.data || [];
+                const excludedBranches = ['master', 'develop'];
+                const filteredBranches = allBranches.filter(branch => !excludedBranches.includes(branch));
+                setBranches(filteredBranches);
             } catch (err) {
                 console.error('Ошибка загрузки веток:', err);
                 const fallbackBranches = ['develop', 'master'];
-                setBranches(fallbackBranches);
+                const excludedBranches = ['master', 'develop'];
+                const filteredFallback = fallbackBranches.filter(branch => !excludedBranches.includes(branch));
+                setBranches(filteredFallback);
             } finally {
                 setLoadingBranches(false);
             }
         };
 
         fetchBranches();
-    }, []);
+    }, [API_URL]);
 
     const isNameValid = (name) => {
         return /^[a-z0-9-]{3,30}$/.test(name);
@@ -95,8 +101,6 @@ function CreateStack() {
                 stack_type: 'full'
             });
 
-            setTimeout(() => navigate('/'), 3000);
-
         } catch (err) {
             setError(err.response?.data?.error || 'Ошибка создания стека');
         } finally {
@@ -113,7 +117,7 @@ function CreateStack() {
                 </Box>
 
                 <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-                    Создание занимает 1-3 минуты. После создания вы вернетесь на главную.
+                    Создание занимает 1-3 минуты.
                 </Typography>
 
                 {error && (
@@ -171,9 +175,9 @@ function CreateStack() {
                         label="Тип стека"
                         disabled={submitting}
                     >
-                        <MenuItem value="stack">Интернет банк (Full)</MenuItem>
-                        <MenuItem value="backend">Backend сервер (API + DB)</MenuItem>
-                        <MenuItem value="db">База данных (MySQL)</MenuItem>
+                        <MenuItem value="stack">Интернет банк</MenuItem>
+                        <MenuItem value="backend">Backend сервер</MenuItem>
+                        <MenuItem value="db">База данных</MenuItem>
                     </Select>
                 </FormControl>
 

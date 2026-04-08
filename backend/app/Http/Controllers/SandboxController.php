@@ -111,6 +111,54 @@ class SandboxController extends Controller
         }
     }
 
+    public function restart($id)
+    {
+        try {
+            $sandbox = Sandbox::findOrFail($id); // Находит песочницу или выбрасывает 404
+
+            Log::info("Попытка перезапуска стека: {$sandbox->name} (ID: {$id})");
+
+            // Вызываем метод в сервисе для перезапуска через Docker Agent
+            $result = $this->dockerAgent->restartStack($sandbox->name);
+
+            if ($result['success']) {
+                // Логируем успешный перезапуск
+                History::log(
+                    $sandbox->id,
+                    'restart',
+                    "Стек {$sandbox->name} успешно перезапущен"
+                );
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Стек успешно перезапущен',
+                    'sandbox' => new SandboxResource($sandbox),
+                    'data' => $result // Возвращаем данные от агента, если нужно
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ошибка перезапуска стека',
+                    'error' => $result['error'] ?? 'Неизвестная ошибка',
+                    'sandbox' => new SandboxResource($sandbox),
+                ], 500);
+            }
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error("Песочница с ID {$id} не найдена.");
+            return response()->json([
+                'success' => false,
+                'error' => 'Песочница не найдена'
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Ошибка перезапуска стека: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     /**
      * Получить ветки Git
      */
