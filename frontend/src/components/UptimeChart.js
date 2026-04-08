@@ -1,3 +1,4 @@
+// UptimeChart.js
 import React, { useEffect, useState } from 'react';
 import {
     Box, Card, CardContent, Typography, CircularProgress,
@@ -11,6 +12,10 @@ import axios from 'axios';
 import { ApiContext } from '../App';
 
 function UptimeChart({ stackId, stackName }) {
+    // --- Добавляем проверку на наличие stackId ---
+    const isRegisteredSandbox = !!stackId;
+    // ------------------------------------------
+
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -18,6 +23,14 @@ function UptimeChart({ stackId, stackName }) {
     const API_URL = React.useContext(ApiContext);
 
     useEffect(() => {
+        // --- Не запускаем загрузку, если нет stackId ---
+        if (!isRegisteredSandbox) {
+            setLoading(false); // Прекращаем состояние загрузки
+            setError('Статистика недоступна для этого стека'); // Устанавливаем сообщение
+            return; // Выходим из эффекта
+        }
+        // ----------------------------------------------
+
         if (!stackId && !stackName) {
             setError('Нет данных о стеке');
             setLoading(false);
@@ -25,15 +38,20 @@ function UptimeChart({ stackId, stackName }) {
         }
         fetchUptimeData();
         const interval = setInterval(fetchUptimeData, 60000);
-        const timeInterval = setInterval(() => setCurrentTime(new Date()), 1000);
+        const timeInterval = setInterval(() => setCurrentTime(new Date()), 1000); // <-- ИСПРАВЛЕНО: убрана стрелка и фигурная скобка
 
-        return () => {
+        // --- Правильная функция очистки ---
+        return () => { // <-- ИСПРАВЛЕНО: return function () { заменено на return () => {
             clearInterval(interval);
             clearInterval(timeInterval);
         };
-    }, [stackId, stackName]);
+        // ----------------------------------
+    }, [stackId, stackName, isRegisteredSandbox]); // --- Добавляем isRegisteredSandbox в зависимости ---
 
     const fetchUptimeData = async () => {
+        // --- Проверяем ещё раз на случай race condition, хотя маловероятно ---
+        if (!isRegisteredSandbox) return;
+        // --------------------------------------------------------------------
         try {
             const identifier = stackId || stackName;
             // Добавляем кэширование на 30 секунд
@@ -48,7 +66,7 @@ function UptimeChart({ stackId, stackName }) {
             console.error('Uptime fetch error:', err);
             if (err.response?.status === 404) {
                 setData(null);
-                setError('Статистика временно недоступна');
+                setError('Статистика временно недоступна'); // Или другое сообщение
             } else {
                 setError('Ошибка загрузки статистики');
             }
@@ -56,6 +74,16 @@ function UptimeChart({ stackId, stackName }) {
             setLoading(false);
         }
     };
+
+    // --- Отображение сообщения об отсутствии статистики ---
+    if (!isRegisteredSandbox) {
+        return (
+            <Alert severity="info" sx={{ mt: 2 }}>
+                {error || 'Статистика доступности недоступна для этого стека.'}
+            </Alert>
+        );
+    }
+    // --------------------------------------------------------
 
     if (loading) {
         return (
@@ -206,6 +234,7 @@ function UptimeChart({ stackId, stackName }) {
             </Card>
         </Box>
     );
+    // ...
 }
 
 export default UptimeChart;
