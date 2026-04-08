@@ -31,3 +31,5 @@ Route::get('/history', [HistoryController::class, 'getHistory']);
 // Дженкинс
 Route::post('/jenkins/deploy', [JenkinsController::class, 'deploy']);
 Route::get('/jenkins/jobs', [JenkinsController::class, 'getJobs']);
+
+Route::get('/sandboxes/{id}/uptime', [SandboxController::class, 'uptime']);

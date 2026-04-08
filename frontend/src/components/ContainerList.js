@@ -155,7 +155,7 @@ function ContainerList() {
             return;
         }
         try {
-            await axios.delete(`${API_URL}/stacks/${deleteDialog.stackName}`);
+            await axios.post(`${API_URL}/docker/stacks/${deleteDialog.stackName}/delete`);
             setDeleteDialog({ open: false, stackId: null, stackName: '' });
             fetchDashboardData();
         } catch (err) {

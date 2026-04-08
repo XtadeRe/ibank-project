@@ -136,7 +136,7 @@ class SandboxController extends Controller
     /**
      * Получить статистику доступности
      */
-    public function getUptimeStats($id)
+    public function uptime($id) // Renamed from getUptimeStats to uptime
     {
         try {
             $sandbox = Sandbox::where('id', $id)->orWhere('name', $id)->first();

@@ -172,7 +172,7 @@ function CreateStack() {
                         disabled={submitting}
                     >
                         <MenuItem value="stack">Интернет банк (Full)</MenuItem>
-                        <MenuItem value="api">Backend сервер (API + DB)</MenuItem>
+                        <MenuItem value="backend">Backend сервер (API + DB)</MenuItem>
                         <MenuItem value="db">База данных (MySQL)</MenuItem>
                     </Select>
                 </FormControl>
