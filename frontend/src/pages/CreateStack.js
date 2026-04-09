@@ -16,38 +16,17 @@ function CreateStack() {
 
     const [form, setForm] = useState({
         name: '',
-        git_branch: '',
+        git_branch: 'createStack', // Статически установленное значение
         stack_type: 'full'
     });
 
-    const [branches, setBranches] = useState([]);
-    const [loadingBranches, setLoadingBranches] = useState(true);
+    const [branches] = useState(['createStack']); // Статический список
+    const [loadingBranches, setLoadingBranches] = useState(false); // Загрузка не требуется
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-
-    useEffect(() => {
-        const fetchBranches = async () => {
-            try {
-                const response = await axios.get(`${API_URL}/branch-data`);
-                const allBranches = response.data.data || [];
-                const excludedBranches = ['master', 'develop'];
-                const filteredBranches = allBranches.filter(branch => !excludedBranches.includes(branch));
-                setBranches(filteredBranches);
-            } catch (err) {
-                console.error('Ошибка загрузки веток:', err);
-                const fallbackBranches = ['develop', 'master'];
-                const excludedBranches = ['master', 'develop'];
-                const filteredFallback = fallbackBranches.filter(branch => !excludedBranches.includes(branch));
-                setBranches(filteredFallback);
-            } finally {
-                setLoadingBranches(false);
-            }
-        };
-
-        fetchBranches();
-    }, [API_URL]);
+    // useEffect убираем, так как данные статичны
 
     const isNameValid = (name) => {
         return /^[a-z0-9-]{3,30}$/.test(name);
@@ -55,7 +34,11 @@ function CreateStack() {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setForm(prev => ({ ...prev, [name]: value }));
+        // Обрабатываем изменение для name и stack_type, но не для git_branch
+        if (name !== 'git_branch') {
+            setForm(prev => ({ ...prev, [name]: value }));
+        }
+        // git_branch остаётся 'createStack'
     };
 
     const handleSubmit = async () => {
@@ -67,10 +50,7 @@ function CreateStack() {
             setError('Имя: только латиница, цифры, дефис. 3-30 символов');
             return;
         }
-        if (!form.git_branch) {
-            setError('Выберите ветку');
-            return;
-        }
+        // git_branch всегда 'createStack', проверка не нужна
 
         try {
             setSubmitting(true);
@@ -82,12 +62,12 @@ function CreateStack() {
                 name: form.name,
                 timestamp: Date.now(),
                 type: form.stack_type,
-                branch: form.git_branch
+                branch: form.git_branch // Всегда 'createStack'
             });
             localStorage.setItem('creatingStacks', JSON.stringify(creating));
 
             await axios.post(`${API_URL}/jenkins/deploy`, {
-                branch: form.git_branch,
+                branch: form.git_branch, // Всегда 'createStack'
                 stack_type: form.stack_type,
                 stack_name: form.name,
                 machine_ip: '127.0.0.1'
@@ -97,7 +77,7 @@ function CreateStack() {
 
             setForm({
                 name: '',
-                git_branch: branches[0] || 'develop',
+                git_branch: 'createStack', // Сброс к статическому значению
                 stack_type: 'full'
             });
 
@@ -147,8 +127,16 @@ function CreateStack() {
                     helperText={form.name && !isNameValid(form.name) ? "Латиница, цифры, дефис. 3-30 символов" : "Пример: my-app, test-stack"}
                 />
 
-                <FormControl fullWidth margin="normal" required disabled={loadingBranches}>
-                    <InputLabel id="branch-select-label">
+                {/* Статическое поле для ветки */}
+                <FormControl fullWidth margin="normal" required>
+                    <TextField
+                        label="Ветка Git"
+                        value="createStack" // Отображаем статическое значение
+                        disabled // Делаем поле неизменяемым
+                        margin="normal"
+                    />
+                    {/* Скрываем старый Select */}
+                    {/* <InputLabel id="branch-select-label">
                         {loadingBranches ? 'Загрузка веток...' : 'Ветка Git'}
                     </InputLabel>
                     <Select
@@ -157,13 +145,10 @@ function CreateStack() {
                         value={form.git_branch || ''}
                         onChange={handleChange}
                         label={loadingBranches ? 'Загрузка веток...' : 'Ветка Git'}
+                        disabled={true} // Также отключаем, если оставляем Select
                     >
-                        {branches.map(branch => (
-                            <MenuItem key={branch} value={branch}>
-                                {branch}
-                            </MenuItem>
-                        ))}
-                    </Select>
+                        <MenuItem value="createStack">createStack</MenuItem>
+                    </Select> */}
                 </FormControl>
 
                 <FormControl fullWidth margin="normal">
@@ -187,7 +172,7 @@ function CreateStack() {
                     color="primary"
                     size="large"
                     onClick={handleSubmit}
-                    disabled={submitting || loadingBranches || !form.name || !form.git_branch || !isNameValid(form.name)}
+                    disabled={submitting || !form.name || !isNameValid(form.name)} // Убрали проверки, связанные с веткой и её загрузкой
                     startIcon={!submitting && <BuildIcon />}
                     sx={{ mt: 4 }}
                 >

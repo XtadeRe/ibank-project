@@ -179,10 +179,10 @@ function UptimeChart({ stackId, stackName }) {
                                                         Проверок: {data.checks}
                                                     </Typography>
                                                     <Typography variant="body2" color="success.main">
-                                                        ✅ Успешно: {data.available}
+                                                        Успешно: {data.available}
                                                     </Typography>
                                                     <Typography variant="body2" color="error.main">
-                                                        ❌ Ошибок: {data.failed}
+                                                        Ошибок: {data.failed}
                                                     </Typography>
                                                 </Paper>
                                             );

@@ -2,15 +2,13 @@ import React, { createContext } from 'react';
 import { Container, AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
 import { BrowserRouter, Routes, Route, Link as RouterLink } from 'react-router-dom';
 
-// Импорт страниц
+
 import Dashboard from './pages/Dashboard';
 import CreateStack from './pages/CreateStack';
 import History from './pages/History';
 
-// Создаем контекст для API URL
 export const ApiContext = createContext();
 
-// Получаем URL API из переменной окружения
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 function App() {
@@ -21,7 +19,13 @@ function App() {
                     <AppBar position="static">
                         <Toolbar>
                             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+                                <Button
+                                    color="inherit"
+                                    variant="h6"
+                                    component={RouterLink}
+                                    to="/">
                                 Sandbox Orchestrator
+                                </Button>
                             </Typography>
                             <Button
                                 color="inherit"

@@ -176,11 +176,24 @@ class DockerAgentController extends Controller
     public function deleteStack($stackName)
     {
         try {
+            $sandbox = Sandbox::where('name', $stackName)->first();
+            $sandboxIdForHistory = $sandbox ? $sandbox->id : null; // Если не найдена, ID будет null
+
             $result = $this->dockerAgent->deleteStack($stackName);
 
             $stackDir = "C:/OSPanel/home/sandbox/docker-agent/docker-stacks/{$stackName}";
             if (is_dir($stackDir)) {
                 $this->deleteDirectory($stackDir);
+            }
+
+            if ($sandbox) {
+                History::log(
+                    $sandbox->id,
+                    'delete_stack_controller',
+                    "Стек {$stackName} успешно удален"
+                );
+            } else {
+                \Log::info("Попытка удаления стека {$stackName}, но запись в таблице sandboxes не найдена.");
             }
 
             return response()->json([
@@ -189,7 +202,16 @@ class DockerAgentController extends Controller
                 'data' => $result
             ]);
         } catch (\Exception $e) {
-            Log::error('Ошибка удаления стека: ' . $e->getMessage());
+            Log::error('Ошибка удаления стека в DockerAgentController: ' . $e->getMessage());
+
+            if (isset($sandbox) && $sandbox) {
+                \App\Models\History::log(
+                    $sandbox->id,
+                    'delete_stack_controller_error',
+                    "Ошибка удаления стека {$stackName} через контроллер: " . $e->getMessage()
+                );
+            }
+
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()
