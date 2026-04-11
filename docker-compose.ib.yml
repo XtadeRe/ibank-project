@@ -21,6 +21,8 @@ services:
     container_name: ${STACK_NAME}_php
     volumes:
       - ./backend:/var/www/html
+    runtime: runc
+    mem_limit: 1g
     ports:
       - "${WEB_PORT}:8000"
     command: >
