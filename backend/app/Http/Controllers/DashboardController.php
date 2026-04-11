@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Sandbox;
-use App\Services\DockerAgentService;
+use App\Services\DockerAgentService; // Убедитесь, что импортировали
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 
@@ -11,9 +11,14 @@ class DashboardController extends Controller
 {
     private $dockerAgent;
 
+    // Предположим, имя стека вашего сайта хранится в переменной окружения
+    private $siteStackName;
+
     public function __construct()
     {
         $this->dockerAgent = new DockerAgentService(env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001'));
+        // Получаем имя стека из .env или задаём жёстко, например: 'frontend_stack'
+        $this->siteStackName = env('SITE_STACK_NAME', '');
     }
 
     public function getDashboardData()
@@ -21,7 +26,20 @@ class DashboardController extends Controller
         try {
             $startTime = microtime(true);
 
-            $stacks = $this->dockerAgent->getStacks();
+            $allStacks = $this->dockerAgent->getStacks();
+
+            // --- ФИЛЬТРАЦИЯ: Исключаем стек сайта ---
+            $stacks = $allStacks;
+            if (!empty($this->siteStackName)) {
+                $stacks = array_filter($allStacks, function ($stack) {
+                    // Предполагается, что $stack - это массив с ключом 'name'
+                    return $stack['name'] !== $this->siteStackName;
+                });
+                // array_filter может изменить индексы, array_values восстанавливает их
+                $stacks = array_values($stacks);
+            }
+            // ------------------------------
+
             $sandboxes = Sandbox::all();
 
             $sandboxesMap = [];
@@ -29,15 +47,22 @@ class DashboardController extends Controller
                 $sandboxesMap[$sandbox->name] = $sandbox;
             }
 
-            // Контейнеры для всех стеков
+            // Контейнеры для всех (оставшихся) стеков
             $stacksWithDetails = [];
             foreach ($stacks as $stack) {
-                $containers = $this->dockerAgent->getContainersByStack($stack['name']);
-                $sandbox = $sandboxesMap[$stack['name']] ?? null;
+                // Проверяем существование ключа на всякий случай
+                $stackName = $stack['name'] ?? null;
+                if ($stackName === null) {
+                    Log::warning('Stack with no name found, skipping.', ['stack_data' => $stack]);
+                    continue; // Пропускаем стек без имени
+                }
+
+                $containers = $this->dockerAgent->getContainersByStack($stackName);
+                $sandbox = $sandboxesMap[$stackName] ?? null;
 
                 $stacksWithDetails[] = [
                     'id' => $sandbox?->id,
-                    'name' => $stack['name'],
+                    'name' => $stackName, // Используем $stackName для ясности
                     'git_branch' => $sandbox?->git_branch ?? 'develop',
                     'version' => $sandbox?->version ?? 'v1.0.0',
                     'status' => $sandbox?->status ?? 'unknown',
@@ -47,7 +72,7 @@ class DashboardController extends Controller
             }
 
             $duration = round((microtime(true) - $startTime) * 1000);
-            Log::info("Dashboard data loaded in {$duration}ms");
+            Log::info("Dashboard data loaded in {$duration}ms, filtered out " . (count($allStacks) - count($stacks)) . " stacks.");
 
             return response()->json([
                 'success' => true,
