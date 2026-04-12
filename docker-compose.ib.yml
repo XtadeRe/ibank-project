@@ -22,7 +22,7 @@ services:
     volumes:
       - ./backend:/var/www/html
     runtime: runc
-    mem_limit: 2g
+    mem_limit: 3g
     ports:
       - "${WEB_PORT}:8000"
     command: >
