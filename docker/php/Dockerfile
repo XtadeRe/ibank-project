@@ -28,11 +28,14 @@ WORKDIR /var/www/html
 # Копируем composer файлы
 COPY backend/composer.json backend/composer.lock ./
 
-# Устанавливаем зависимости
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Устанавливаем зависимости (создаем vendor директорию)
+RUN composer install --no-dev --no-scripts --no-interaction
 
 # Копируем остальной код
 COPY backend/ ./
+
+# Выполняем автозагрузку и кэширование
+RUN composer dump-autoload --optimize --classmap-authoritative
 
 # Создаем папки для кэша и логов
 RUN mkdir -p storage/framework/cache \
