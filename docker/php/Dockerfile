@@ -20,16 +20,16 @@ RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 # Установка Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Увеличиваем лимит памяти
-RUN echo 'memory_limit = 2G' > /usr/local/etc/php/conf.d/memory-limit.ini
+# Увеличиваем лимит памяти для Composer
+ENV COMPOSER_MEMORY_LIMIT=-1
 
 WORKDIR /var/www/html
 
 # Копируем composer файлы
 COPY backend/composer.json backend/composer.lock ./
 
-# Устанавливаем зависимости с увеличенным лимитом памяти
-RUN composer install --no-dev --optimize-autoloader --no-interaction --memory-limit=-1
+# Устанавливаем зависимости
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Копируем остальной код
 COPY backend/ ./
