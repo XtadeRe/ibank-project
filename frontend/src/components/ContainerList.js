@@ -49,9 +49,24 @@ function ContainerList() {
             setLoading(true);
             const startTime = performance.now();
 
-            const response = await axios.get(`${API_URL}/dashboard-data`, {
-                timeout: 30000
-            });
+            // Добавьте retry-логику
+            let response;
+            let attempts = 0;
+            const maxAttempts = 3;
+
+            while (attempts < maxAttempts) {
+                try {
+                    response = await axios.get(`${API_URL}/dashboard-data`, {
+                        timeout: 30000
+                    });
+                    break;
+                } catch (err) {
+                    attempts++;
+                    if (attempts >= maxAttempts) throw err;
+                    // Подождать перед повторной попыткой
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
 
             if (response.data.success) {
                 setStacks(response.data.stacks);
