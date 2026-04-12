@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.2-cli
 
 # Установка зависимостей
 RUN apt-get update && apt-get install -y \
@@ -9,16 +9,26 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     unzip \
-    netcat-openbsd \
+    nodejs \
+    npm \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Установка PHP расширений
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
+# Увеличиваем лимит памяти
+RUN echo 'memory_limit = 2G' > /usr/local/etc/php/conf.d/memory-limit.ini
+
 WORKDIR /var/www/html
 
-# Копируем ВЕСЬ код (vendor уже есть в репозитории)
+# Копируем composer.json и composer.lock
+COPY backend/composer.json backend/composer.lock ./
+
+# Устанавливаем зависимости
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+# Копируем остальной код
 COPY backend/ ./
 
 # Создаем папки для кэша и логов
@@ -28,10 +38,8 @@ RUN mkdir -p storage/framework/cache \
     storage/logs \
     bootstrap/cache \
     && chmod -R 777 storage \
-    && chmod -R 777 bootstrap/cache \
-    && chown -R www-data:www-data storage \
-    && chown -R www-data:www-data bootstrap/cache
+    && chmod -R 777 bootstrap/cache
 
-EXPOSE 9000
+EXPOSE 8000
 
-CMD ["php-fpm"]
+CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=8000"]
