@@ -51,7 +51,7 @@ services:
       dockerfile: docker/frontend/Dockerfile.dev
     container_name: ${STACK_NAME}_frontend
     ports:
-      - "${FRONTEND_PORT}:3000" # FRONTEND_PORT -> 3000 (внутри контейнера)
+      - "${FRONTEND_PORT}:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -60,10 +60,23 @@ services:
       - WDS_SOCKET_PORT=${FRONTEND_PORT}
       - WDS_SOCKET_HOST=0.0.0.0
       - HOST=0.0.0.0
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=false
+      - WATCHPACK_POLLING=false
+      - NODE_OPTIONS=--max-old-space-size=2048
+      - GENERATE_SOURCEMAP=false
+      - ESLINT_NO_DEV_ERRORS=true
+      - DISABLE_ESLINT_PLUGIN=true
+      - WATCHPACK_WATCHER_LIMIT=1024
     stdin_open: true
     tty: true
+    mem_limit: 4g
+    mem_reservation: 2g
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
     depends_on:
       - php
     networks:
