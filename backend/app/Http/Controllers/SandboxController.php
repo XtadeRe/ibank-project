@@ -10,6 +10,8 @@ use App\Models\Sandbox;
 use App\Services\DockerAgentService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class SandboxController extends Controller
 {
@@ -186,6 +188,17 @@ class SandboxController extends Controller
      */
     public function uptime($id) // Renamed from getUptimeStats to uptime
     {
+        $cacheKey = "uptime_data_{$id}"; // Уникальный ключ кэша для каждого стека
+        $cacheTimeoutSeconds = 55; // Кэшируем на 55 секунд (чуть меньше, чем интервал опроса)
+
+        // Попробуем получить данные из кэша
+        $cachedResult = Cache::get($cacheKey);
+
+        if ($cachedResult !== null) {
+            Log::debug("Uptime data for sandbox {$id} served from cache.");
+            return response()->json($cachedResult);
+        }
+
         try {
             $sandbox = Sandbox::where('id', $id)->orWhere('name', $id)->first();
 
@@ -196,35 +209,54 @@ class SandboxController extends Controller
                 ], 404);
             }
 
-            $lastDay = now()->subDay();
-            $dayChecks = $sandbox->healthChecks()
-                ->where('created_at', '>=', $lastDay)
-                ->get();
+            // --- Кэширование вычислений ---
+            $cacheKeyChecks = "uptime_checks_{$id}";
+            $checksData = Cache::remember($cacheKeyChecks, 60, function() use ($sandbox) { // Кэшируем на 1 минуту
+                $lastDay = now()->subDay();
+                $dayChecks = $sandbox->healthChecks()
+                    ->where('created_at', '>=', $lastDay)
+                    ->get();
 
-            $lastWeek = now()->subDays(7);
-            $weekChecks = $sandbox->healthChecks()
-                ->where('created_at', '>=', $lastWeek)
-                ->get();
+                $lastWeek = now()->subDays(7);
+                $weekChecks = $sandbox->healthChecks()
+                    ->where('created_at', '>=', $lastWeek)
+                    ->get();
 
-            $lastMonth = now()->subDays(30);
-            $monthChecks = $sandbox->healthChecks()
-                ->where('created_at', '>=', $lastMonth)
-                ->get();
+                $lastMonth = now()->subDays(30);
+                $monthChecks = $sandbox->healthChecks()
+                    ->where('created_at', '>=', $lastMonth)
+                    ->get();
+
+                return [
+                    'day' => $dayChecks,
+                    'week' => $weekChecks,
+                    'month' => $monthChecks,
+                    'total_count' => $sandbox->healthChecks()->count()
+                ];
+            });
+
+            $uptime = [
+                'day' => $this->calculateUptime($checksData['day']),
+                'week' => $this->calculateUptime($checksData['week']),
+                'month' => $this->calculateUptime($checksData['month']),
+            ];
 
             $chartData = $this->getChartData($sandbox);
 
-            return response()->json([
+            $result = [
                 'success' => true,
-                'uptime' => [
-                    'day' => $this->calculateUptime($dayChecks),
-                    'week' => $this->calculateUptime($weekChecks),
-                    'month' => $this->calculateUptime($monthChecks),
-                ],
+                'uptime' => $uptime,
                 'chart' => $chartData,
-                'total_checks' => $sandbox->healthChecks()->count(),
-            ]);
+                'total_checks' => $checksData['total_count'],
+            ];
+
+            // Сохраняем результат в кэш
+            Cache::put($cacheKey, $result, $cacheTimeoutSeconds);
+
+            return response()->json($result);
 
         } catch (\Exception $e) {
+            // Не кэшируем ошибки
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()
@@ -295,37 +327,41 @@ class SandboxController extends Controller
 
     private function getChartData($sandbox)
     {
-        $checks = $sandbox->healthChecks()
-            ->where('created_at', '>=', now()->subHours(24))
-            ->orderBy('created_at', 'asc')
-            ->get();
+        // Этот метод можно также кэшировать, если он дорогой
+        $cacheKeyChart = "uptime_chart_{$sandbox->id}";
+        return Cache::remember($cacheKeyChart, 60, function() use ($sandbox) { // Кэшируем на 1 минуту
+            $checks = $sandbox->healthChecks()
+                ->where('created_at', '>=', now()->subHours(24))
+                ->orderBy('created_at', 'asc')
+                ->get();
 
-        $chartData = [];
-        $now = now();
+            $chartData = [];
+            $now = now();
 
-        for ($i = 23; $i >= 0; $i--) {
-            $hourStart = $now->copy()->subHours($i)->startOfHour();
-            $hourEnd = $now->copy()->subHours($i)->endOfHour();
+            for ($i = 23; $i >= 0; $i--) {
+                $hourStart = $now->copy()->subHours($i)->startOfHour();
+                $hourEnd = $now->copy()->subHours($i)->endOfHour();
 
-            $hourChecks = $checks->filter(function($check) use ($hourStart, $hourEnd) {
-                return $check->created_at >= $hourStart && $check->created_at <= $hourEnd;
-            });
+                $hourChecks = $checks->filter(function($check) use ($hourStart, $hourEnd) {
+                    return $check->created_at >= $hourStart && $check->created_at <= $hourEnd;
+                });
 
-            $total = $hourChecks->count();
-            $available = $hourChecks->where('is_available', true)->count();
-            $uptime = ($total > 0) ? round(($available / $total) * 100, 2) : 0;
+                $total = $hourChecks->count();
+                $available = $hourChecks->where('is_available', true)->count();
+                $uptime = ($total > 0) ? round(($available / $total) * 100, 2) : 0;
 
-            $chartData[] = [
-                'hour' => $hourStart->format('H:00'),
-                'uptime' => $uptime,
-                'checks' => $total,
-                'available' => $available,
-                'failed' => $total - $available,
-                'timestamp' => $hourStart->timestamp,
-                'isCurrentHour' => ($i === 0)
-            ];
-        }
+                $chartData[] = [
+                    'hour' => $hourStart->format('H:00'),
+                    'uptime' => $uptime,
+                    'checks' => $total,
+                    'available' => $available,
+                    'failed' => $total - $available,
+                    'timestamp' => $hourStart->timestamp,
+                    'isCurrentHour' => ($i === 0)
+                ];
+            }
 
-        return $chartData;
+            return $chartData;
+        });
     }
 }

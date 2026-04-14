@@ -12,78 +12,130 @@ import axios from 'axios';
 import { ApiContext } from '../App';
 
 function UptimeChart({ stackId, stackName }) {
-    // --- Добавляем проверку на наличие stackId ---
-    const isRegisteredSandbox = !!stackId;
-    // ------------------------------------------
-
     const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true); // Инициализируем как true
     const [error, setError] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
     const API_URL = React.useContext(ApiContext);
 
+    // --- useRef для отслеживания mounted состояния ---
+    const isMountedRef = React.useRef(true);
     useEffect(() => {
-        // --- Не запускаем загрузку, если нет stackId ---
-        if (!isRegisteredSandbox) {
-            setLoading(false); // Прекращаем состояние загрузки
-            setError('Статистика недоступна для этого стека'); // Устанавливаем сообщение
-            return; // Выходим из эффекта
-        }
-        // ----------------------------------------------
+        isMountedRef.current = true;
+        return () => { isMountedRef.current = false; };
+    }, []);
+    // ---
 
-        if (!stackId && !stackName) {
-            setError('Нет данных о стеке');
-            setLoading(false);
+    // --- useCallback для fetchUptimeData ---
+    const fetchUptimeData = React.useCallback(async () => {
+        // Проверяем mounted перед выполнением асинхронного кода
+        if (!isMountedRef.current) return;
+
+        const identifier = stackId || stackName;
+        if (!identifier) {
+            // Если идентификатора нет, устанавливаем соответствующее состояние и выходим
+            // setLoading(false); // Не устанавливаем здесь, так как основной useEffect это сделает, если нет ID
+            setError('ID стека не указан.');
+            setData(null);
             return;
         }
-        fetchUptimeData();
-        const interval = setInterval(fetchUptimeData, 60000);
-        const timeInterval = setInterval(() => setCurrentTime(new Date()), 1000); // <-- ИСПРАВЛЕНО: убрана стрелка и фигурная скобка
 
-        // --- Правильная функция очистки ---
-        return () => { // <-- ИСПРАВЛЕНО: return function () { заменено на return () => {
-            clearInterval(interval);
-            clearInterval(timeInterval);
-        };
-        // ----------------------------------
-    }, [stackId, stackName, isRegisteredSandbox]); // --- Добавляем isRegisteredSandbox в зависимости ---
+        // Устанавливаем состояние загрузки перед выполнением запроса
+        if (isMountedRef.current) {
+            setLoading(true); // <-- ПЕРЕМЕЩЕНО СЮДА
+        }
 
-    const fetchUptimeData = async () => {
-        // --- Проверяем ещё раз на случай race condition, хотя маловероятно ---
-        if (!isRegisteredSandbox) return;
-        // --------------------------------------------------------------------
         try {
-            const identifier = stackId || stackName;
             // Добавляем кэширование на 30 секунд
             const response = await axios.get(`${API_URL}/sandboxes/${identifier}/uptime`, {
                 headers: {
                     'Cache-Control': 'max-age=30'
-                }
+                },
+                // cancelToken можно оставить, но для простоты уберем, если не требуется сложная логика отмены
+                // cancelToken: new axios.CancelToken(cancel => { ... })
             });
-            setData(response.data);
-            setError('');
+
+            // Проверяем mounted перед обновлением состояния
+            if (isMountedRef.current) {
+                setData(response.data);
+                setError(''); // Сбрасываем ошибку при успешной загрузке
+            }
         } catch (err) {
+            // Проверяем, была ли ошибка отмены запроса (если использовали cancelToken)
+            if (axios.isCancel(err)) {
+                console.log('Request canceled:', err.message);
+                return; // Просто выходим, не обновляя состояние
+            }
+
             console.error('Uptime fetch error:', err);
-            if (err.response?.status === 404) {
+            // Проверяем mounted перед обновлением состояния
+            if (isMountedRef.current) {
+                let errorMsg = 'Ошибка загрузки статистики';
+                if (err.response?.status === 404) {
+                    errorMsg = 'Статистика временно недоступна';
+                } else if (err.message) {
+                    errorMsg += `: ${err.message}`;
+                }
+                setError(errorMsg);
                 setData(null);
-                setError('Статистика временно недоступна'); // Или другое сообщение
-            } else {
-                setError('Ошибка загрузки статистики');
             }
         } finally {
-            setLoading(false);
+            // Проверяем mounted перед обновлением состояния
+            if (isMountedRef.current) {
+                setLoading(false); // <-- ПЕРЕМЕЩЕНО СЮДА: всегда сбрасываем загрузку после завершения запроса
+            }
         }
-    };
+    }, [API_URL, stackId, stackName, isMountedRef]);
+    // ---
 
-    // --- Отображение сообщения об отсутствии статистики ---
-    if (!isRegisteredSandbox) {
+
+    // --- Обновлённый useEffect ---
+    useEffect(() => {
+        // Проверяем наличие stackId при монтировании или изменении
+        if (!stackId) {
+            // Если stackId нет, не запускаем fetch, устанавливаем ошибку и останавливаем загрузку
+            setError('Статистика недоступна для этого стека.');
+            setData(null);
+            setLoading(false); // <-- ВАЖНО: Останавливаем загрузку, если нет ID
+            return; // Выходим, не устанавливая интервалы
+        }
+
+        // Если ID есть, сбрасываем ошибку (если была от предыдущего состояния без ID)
+        setError('');
+
+        // Запускаем загрузку данных немедленно
+        fetchUptimeData(); // Вызовет setLoading(true) внутри себя
+
+        // Устанавливаем интервал для регулярного обновления данных
+        const interval = setInterval(fetchUptimeData, 120000);
+
+        // Устанавливаем интервал для обновления текущего времени
+        const timeInterval = setInterval(() => {
+            if (isMountedRef.current) {
+                setCurrentTime(new Date());
+            }
+        }, 1000);
+
+        // Функция очистки при размонтировании или повторном запуске эффекта
+        return () => {
+            clearInterval(interval);
+            clearInterval(timeInterval);
+        };
+        // Зависимости: useEffect сработает при изменении stackId
+        // fetchUptimeData зависит от stackId, API_URL и isMountedRef, поэтому она стабильна в рамках одного render-цикла
+        // error не включаем в зависимости, так как fetchUptimeData сама управляет setError, и включение error вызвало бы цикл
+    }, [stackId, fetchUptimeData]); // <-- Убрали error из зависимостей
+    // ---
+
+
+    // --- Условия рендера ---
+    if (!stackId) {
         return (
             <Alert severity="info" sx={{ mt: 2 }}>
-                {error || 'Статистика доступности недоступна для этого стека.'}
+                Статистика доступности недоступна для этого стека.
             </Alert>
         );
     }
-    // --------------------------------------------------------
 
     if (loading) {
         return (
@@ -93,7 +145,8 @@ function UptimeChart({ stackId, stackName }) {
         );
     }
 
-    if (error || !data || !data.chart) {
+    // Явно проверяем, что data существует и имеет нужную структуру перед рендерингом графика
+    if (error || !data || !Array.isArray(data.chart) || typeof data.uptime !== 'object') {
         return (
             <Alert severity="info" sx={{ mt: 2 }}>
                 {error || 'Статистика доступности накапливается...'}
@@ -101,6 +154,7 @@ function UptimeChart({ stackId, stackName }) {
         );
     }
 
+    // --- Рендеринг графика ---
     const getUptimeColor = (value) => {
         if (value >= 99.9) return '#4caf50';
         if (value >= 70) return '#8bc34a';
@@ -112,28 +166,33 @@ function UptimeChart({ stackId, stackName }) {
 
     return (
         <Box>
+            {/* Рендер статистики */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
                 {['day', 'week', 'month'].map((period) => (
-                    <Grid item xs={4} key={period}>
-                        <Paper
-                            sx={{
-                                p: 2,
-                                textAlign: 'center',
-                                bgcolor: getUptimeColor(data.uptime[period]) + '15',
-                                borderLeft: `4px solid ${getUptimeColor(data.uptime[period])}`
-                            }}
-                        >
-                            <Typography variant="h4" color={getUptimeColor(data.uptime[period])}>
-                                {data.uptime[period]}%
-                            </Typography>
-                            <Typography variant="body2" color="textSecondary">
-                                {period === 'day' ? 'За 24 часа' : period === 'week' ? 'За 7 дней' : 'За 30 дней'}
-                            </Typography>
-                        </Paper>
-                    </Grid>
+                    // Убедитесь, что data.uptime[period] определён
+                    data.uptime && data.uptime[period] !== undefined && (
+                        <Grid item xs={4} key={period}>
+                            <Paper
+                                sx={{
+                                    p: 2,
+                                    textAlign: 'center',
+                                    bgcolor: getUptimeColor(data.uptime[period]) + '15',
+                                    borderLeft: `4px solid ${getUptimeColor(data.uptime[period])}`
+                                }}
+                            >
+                                <Typography variant="h4" color={getUptimeColor(data.uptime[period])}>
+                                    {data.uptime[period]}%
+                                </Typography>
+                                <Typography variant="body2" color="textSecondary">
+                                    {period === 'day' ? 'За 24 часа' : period === 'week' ? 'За 7 дней' : 'За 30 дней'}
+                                </Typography>
+                            </Paper>
+                        </Grid>
+                    )
                 ))}
             </Grid>
 
+            {/* Рендер графика */}
             <Card>
                 <CardContent>
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -147,78 +206,86 @@ function UptimeChart({ stackId, stackName }) {
                         />
                     </Box>
 
-                    <Box sx={{ width: '100%', height: 350, minWidth: '550px' }}>
-                        <ResponsiveContainer>
-                            <LineChart
-                                data={data.chart}
-                                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                            >
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis
-                                    dataKey="hour"
-                                    interval={3}
-                                />
-                                <YAxis
-                                    domain={[0, 100]}
-                                    unit="%"
-                                    tickFormatter={(value) => `${value}`}
-                                />
-                                <Tooltip
-                                    content={({ active, payload, label }) => {
-                                        if (active && payload && payload.length) {
-                                            const data = payload[0].payload;
-                                            return (
-                                                <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
-                                                    <Typography variant="body2" color="textSecondary">
-                                                        Час: {label}
-                                                    </Typography>
-                                                    <Typography variant="body1" color="primary">
-                                                        Доступность: {data.uptime}%
-                                                    </Typography>
-                                                    <Typography variant="body2" color="textSecondary">
-                                                        Проверок: {data.checks}
-                                                    </Typography>
-                                                    <Typography variant="body2" color="success.main">
-                                                        Успешно: {data.available}
-                                                    </Typography>
-                                                    <Typography variant="body2" color="error.main">
-                                                        Ошибок: {data.failed}
-                                                    </Typography>
-                                                </Paper>
-                                            );
-                                        }
-                                        return null;
-                                    }}
-                                />
+                    {/* Обёртка для безопасного рендеринга ResponsiveContainer */}
+                    {data.chart && data.chart.length > 0 ? (
+                        <Box sx={{ width: '100%', height: 350, minWidth: '550px' }}>
+                            <ResponsiveContainer>
+                                <LineChart
+                                    data={data.chart}
+                                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis
+                                        dataKey="hour"
+                                        interval={3}
+                                    />
+                                    <YAxis
+                                        domain={[0, 100]}
+                                        unit="%"
+                                        tickFormatter={(value) => `${value}`}
+                                    />
+                                    <Tooltip
+                                        content={({ active, payload, label }) => {
+                                            if (active && payload && payload.length) {
+                                                const dataPayload = payload[0].payload;
+                                                if(!dataPayload) return null;
+                                                return (
+                                                    <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                                                        <Typography variant="body2" color="textSecondary">
+                                                            Час: {label}
+                                                        </Typography>
+                                                        <Typography variant="body1" color="primary">
+                                                            Доступность: {dataPayload.uptime}%
+                                                        </Typography>
+                                                        <Typography variant="body2" color="textSecondary">
+                                                            Проверок: {dataPayload.checks}
+                                                        </Typography>
+                                                        <Typography variant="body2" color="success.main">
+                                                            Успешно: {dataPayload.available}
+                                                        </Typography>
+                                                        <Typography variant="body2" color="error.main">
+                                                            Ошибок: {dataPayload.failed}
+                                                        </Typography>
+                                                    </Paper>
+                                                );
+                                            }
+                                            return null;
+                                        }}
+                                    />
 
-                                {currentHourIndex !== -1 && (
-                                    <ReferenceLine
-                                        x={data.chart[currentHourIndex].hour}
-                                        stroke="#ff6b6b"
-                                        strokeWidth={2}
-                                        strokeDasharray="3 3"
-                                    >
-                                        <Label
-                                            value="Сейчас"
-                                            position="top"
-                                            fill="#ff6b6b"
-                                            fontSize={12}
-                                        />
-                                    </ReferenceLine>
-                                )}
+                                    {currentHourIndex !== -1 && data.chart[currentHourIndex] && (
+                                        <ReferenceLine
+                                            x={data.chart[currentHourIndex].hour}
+                                            stroke="#ff6b6b"
+                                            strokeWidth={2}
+                                            strokeDasharray="3 3"
+                                        >
+                                            <Label
+                                                value="Сейчас"
+                                                position="top"
+                                                fill="#ff6b6b"
+                                                fontSize={12}
+                                            />
+                                        </ReferenceLine>
+                                    )}
 
-                                <Line
-                                    type="monotone"
-                                    dataKey="uptime"
-                                    name="Доступность %"
-                                    stroke="#8884d8"
-                                    strokeWidth={3}
-                                    dot={{ r: 4, fill: '#8884d8' }}
-                                    activeDot={{ r: 8 }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </Box>
+                                    <Line
+                                        type="monotone"
+                                        dataKey="uptime"
+                                        name="Доступность %"
+                                        stroke="#8884d8"
+                                        strokeWidth={3}
+                                        dot={{ r: 4, fill: '#8884d8' }}
+                                        activeDot={{ r: 8 }}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </Box>
+                    ) : (
+                        <Alert severity="info" sx={{ mt: 2 }}>
+                            Недостаточно данных для отображения графика.
+                        </Alert>
+                    )}
 
                     <Box display="flex" justifyContent="center" gap={4} mt={2}>
                         <Box display="flex" alignItems="center">
@@ -234,7 +301,6 @@ function UptimeChart({ stackId, stackName }) {
             </Card>
         </Box>
     );
-    // ...
 }
 
 export default UptimeChart;

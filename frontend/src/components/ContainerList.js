@@ -115,7 +115,7 @@ function ContainerList() {
 
         const interval = setInterval(() => {
             fetchDashboardData();
-        }, 30000);
+        }, 45000);
 
         return () => clearInterval(interval);
     }, [fetchDashboardData]);
@@ -141,7 +141,6 @@ function ContainerList() {
         }
         try {
             await axios.post(`${API_URL}/sandboxes/${stackId}/restart`);
-            setTimeout(() => fetchDashboardData(), 3000);
         } catch (err) {
             setError('Stack restart error');
         }
@@ -155,7 +154,6 @@ function ContainerList() {
         try {
             await axios.post(`${API_URL}/docker/stacks/${deleteDialog.stackName}/delete`);
             setDeleteDialog({ open: false, stackId: null, stackName: '' });
-            fetchDashboardData();
         } catch (err) {
             setError('Stack deletion error');
         }
