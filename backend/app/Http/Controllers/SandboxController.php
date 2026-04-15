@@ -186,82 +186,46 @@ class SandboxController extends Controller
     /**
      * Получить статистику доступности
      */
-    public function uptime($id) // Renamed from getUptimeStats to uptime
+    public function uptime($id)
     {
-        $cacheKey = "uptime_data_{$id}"; // Уникальный ключ кэша для каждого стека
-        $cacheTimeoutSeconds = 55; // Кэшируем на 55 секунд (чуть меньше, чем интервал опроса)
-
-        // Попробуем получить данные из кэша
-        $cachedResult = Cache::get($cacheKey);
-
-        if ($cachedResult !== null) {
-            Log::debug("Uptime data for sandbox {$id} served from cache.");
-            return response()->json($cachedResult);
-        }
-
-        try {
+        $cacheKey = "uptime_data_{$id}";
+        
+        return Cache::remember($cacheKey, 55, function () use ($id) {
             $sandbox = Sandbox::where('id', $id)->orWhere('name', $id)->first();
 
             if (!$sandbox) {
-                return response()->json([
+                return [
                     'success' => false,
-                    'error' => 'Стек не найден'
-                ], 404);
+                    'error' => 'Стек не найден',
+                    'uptime' => ['day' => 0, 'week' => 0, 'month' => 0],
+                    'chart' => []
+                ];
             }
 
-            // --- Кэширование вычислений ---
-            $cacheKeyChecks = "uptime_checks_{$id}";
-            $checksData = Cache::remember($cacheKeyChecks, 60, function() use ($sandbox) { // Кэшируем на 1 минуту
-                $lastDay = now()->subDay();
-                $dayChecks = $sandbox->healthChecks()
-                    ->where('created_at', '>=', $lastDay)
-                    ->get();
-
-                $lastWeek = now()->subDays(7);
-                $weekChecks = $sandbox->healthChecks()
-                    ->where('created_at', '>=', $lastWeek)
-                    ->get();
-
-                $lastMonth = now()->subDays(30);
-                $monthChecks = $sandbox->healthChecks()
-                    ->where('created_at', '>=', $lastMonth)
-                    ->get();
-
-                return [
-                    'day' => $dayChecks,
-                    'week' => $weekChecks,
-                    'month' => $monthChecks,
-                    'total_count' => $sandbox->healthChecks()->count()
-                ];
-            });
+            // Используем оптимизированный метод модели
+            $dayStats = HealthCheck::getUptimeStats($sandbox->id, 24);
+            $weekStats = HealthCheck::getUptimeStats($sandbox->id, 168); // 7 дней
+            $monthStats = HealthCheck::getUptimeStats($sandbox->id, 720); // 30 дней
 
             $uptime = [
-                'day' => $this->calculateUptime($checksData['day']),
-                'week' => $this->calculateUptime($checksData['week']),
-                'month' => $this->calculateUptime($checksData['month']),
+                'day' => $dayStats['uptime'],
+                'week' => $weekStats['uptime'],
+                'month' => $monthStats['uptime'],
             ];
 
-            $chartData = $this->getChartData($sandbox);
+            // Chart data тоже кэшируем отдельно
+            $chartKey = "uptime_chart_{$sandbox->id}";
+            $chartData = Cache::remember($chartKey, 300, function () use ($sandbox) {
+                return $this->getChartData($sandbox);
+            });
 
-            $result = [
+            return [
                 'success' => true,
                 'uptime' => $uptime,
                 'chart' => $chartData,
-                'total_checks' => $checksData['total_count'],
+                'total_checks' => $dayStats['total'],
             ];
-
-            // Сохраняем результат в кэш
-            Cache::put($cacheKey, $result, $cacheTimeoutSeconds);
-
-            return response()->json($result);
-
-        } catch (\Exception $e) {
-            // Не кэшируем ошибки
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        });
     }
 
     /**

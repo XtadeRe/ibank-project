@@ -30,7 +30,12 @@ class AutoHealthCheck extends Command
         $this->info('Запуск автоматической проверки стеков...');
 
         // Получаем все стеки
-        $sandboxes = Sandbox::all();
+$sandboxes = Sandbox::select('id', 'name', 'stack_type', 'git_branch')
+    ->chunk(10, function ($sandboxesChunk) {
+        foreach ($sandboxesChunk as $sandbox) {
+            $this->checkAndRestore($sandbox);
+        }
+    });
 
         if ($sandboxes->isEmpty()) {
             $this->info('Нет стеков для проверки');

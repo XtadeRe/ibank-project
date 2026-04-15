@@ -44,30 +44,34 @@ class HealthCheck extends Model
     }
 
     /**
-     * Получить статистику доступности за период
+     * Получить статистику доступности за период (кешируется)
      */
     public static function getUptimeStats($sandboxId, $hours = 24)
     {
-        $checks = self::where('sandbox_id', $sandboxId)
-            ->where('created_at', '>=', now()->subHours($hours))
-            ->get();
+        $cacheKey = "uptime_stats_{$sandboxId}_{$hours}";
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($sandboxId, $hours) {
+            $checks = self::where('sandbox_id', $sandboxId)
+                ->where('created_at', '>=', now()->subHours($hours))
+                ->select('is_available')
+                ->get();
 
-        if ($checks->isEmpty()) {
+            if ($checks->isEmpty()) {
+                return [
+                    'uptime' => 0,
+                    'total' => 0,
+                    'available' => 0
+                ];
+            }
+
+            $total = $checks->count();
+            $available = $checks->where('is_available', true)->count();
+            $uptime = ($available / $total) * 100;
+
             return [
-                'uptime' => 0,
-                'total' => 0,
-                'available' => 0
+                'uptime' => round($uptime, 2),
+                'total' => $total,
+                'available' => $available
             ];
-        }
-
-        $total = $checks->count();
-        $available = $checks->where('is_available', true)->count();
-        $uptime = ($available / $total) * 100;
-
-        return [
-            'uptime' => round($uptime, 2),
-            'total' => $total,
-            'available' => $available
-        ];
+        });
     }
 }

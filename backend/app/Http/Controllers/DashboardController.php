@@ -40,36 +40,46 @@ class DashboardController extends Controller
             }
             // ------------------------------
 
-            $sandboxes = Sandbox::all();
+// Кэшируем dashboard data на 30 секунд
+$cacheKey = 'dashboard_data_full';
+$dockerAgent = $this->dockerAgent;
+$stacksWithDetails = Cache::remember($cacheKey, 30, function () use ($dockerAgent, $stacks) {
+    $sandboxes = Sandbox::all(['id', 'name', 'git_branch', 'version', 'status', 'created_at']);
 
-            $sandboxesMap = [];
-            foreach ($sandboxes as $sandbox) {
-                $sandboxesMap[$sandbox->name] = $sandbox;
-            }
+    $sandboxesMap = [];
+    foreach ($sandboxes as $sandbox) {
+        $sandboxesMap[$sandbox->name] = $sandbox;
+    }
 
-            // Контейнеры для всех (оставшихся) стеков
-            $stacksWithDetails = [];
-            foreach ($stacks as $stack) {
-                // Проверяем существование ключа на всякий случай
-                $stackName = $stack['name'] ?? null;
-                if ($stackName === null) {
-                    Log::warning('Stack with no name found, skipping.', ['stack_data' => $stack]);
-                    continue; // Пропускаем стек без имени
-                }
+    // Параллельно получаем контейнеры (используем Laravel Http async если доступно, иначе последовательно)
+    $containersData = [];
+    foreach ($stacks as $stack) {
+        $stackName = $stack['name'] ?? null;
+        if ($stackName === null) continue;
+        $containersData[$stackName] = $dockerAgent->getContainersByStack($stackName);
+    }
 
-                $containers = $this->dockerAgent->getContainersByStack($stackName);
-                $sandbox = $sandboxesMap[$stackName] ?? null;
+    $result = [];
+    foreach ($stacks as $stack) {
+        $stackName = $stack['name'] ?? null;
+        if ($stackName === null) continue;
 
-                $stacksWithDetails[] = [
-                    'id' => $sandbox?->id,
-                    'name' => $stackName, // Используем $stackName для ясности
-                    'git_branch' => $sandbox?->git_branch ?? 'develop',
-                    'version' => $sandbox?->version ?? 'v1.0.0',
-                    'status' => $sandbox?->status ?? 'unknown',
-                    'containers' => $containers,
-                    'created_at' => $sandbox?->created_at,
-                ];
-            }
+        $containers = $containersData[$stackName] ?? [];
+        $sandbox = $sandboxesMap[$stackName] ?? null;
+
+        $result[] = [
+            'id' => $sandbox?->id,
+            'name' => $stackName,
+            'git_branch' => $sandbox?->git_branch ?? 'develop',
+            'version' => $sandbox?->version ?? 'v1.0.0',
+            'status' => $sandbox?->status ?? 'unknown',
+            'containers' => $containers,
+            'created_at' => $sandbox?->created_at,
+        ];
+    }
+
+    return $result;
+});
 
             $duration = round((microtime(true) - $startTime) * 1000);
             Log::info("Dashboard data loaded in {$duration}ms, filtered out " . (count($allStacks) - count($stacks)) . " stacks.");
