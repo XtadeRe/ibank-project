@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, useCallback } from 'react';
+import React, { Suspense, useEffect, useState, useContext, useCallback, memo, useMemo, useTransition } from 'react';
 import {
     Box,
     Card,
@@ -28,7 +28,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import axios from 'axios';
-import UptimeChart from './UptimeChart';
+const LazyUptimeChart = React.lazy(() => import('./UptimeChart'));
 import { ApiContext } from '../App';
 
 function ContainerList() {
@@ -39,6 +39,7 @@ function ContainerList() {
     const [refreshing, setRefreshing] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState({ open: false, stackId: null, stackName: '' });
     const [lastUpdate, setLastUpdate] = useState(null);
+    const [isPending, startTransition] = useTransition();
 
     const API_URL = useContext(ApiContext);
 
@@ -49,7 +50,7 @@ function ContainerList() {
             setLoading(true);
             const startTime = performance.now();
 
-            // Добавьте retry-логику
+            // Retry logic
             let response;
             let attempts = 0;
             const maxAttempts = 3;
@@ -63,7 +64,6 @@ function ContainerList() {
                 } catch (err) {
                     attempts++;
                     if (attempts >= maxAttempts) throw err;
-                    // Подождать перед повторной попыткой
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
             }
@@ -84,31 +84,31 @@ function ContainerList() {
         }
     }, [API_URL]);
 
-    useEffect(() => {
-        const checkCreatingStacks = () => {
-            const currentStacksNames = stacks.map(s => s.name);
-            const creating = JSON.parse(localStorage.getItem('creatingStacks') || '[]');
-            const now = Date.now();
+    const checkCreatingStacks = useCallback(() => {
+        const currentStacksNames = stacks.map(s => s.name);
+        const creating = JSON.parse(localStorage.getItem('creatingStacks') || '[]');
+        const now = Date.now();
 
-            const activeStacks = creating.filter(stack => {
-                const isExpired = now - stack.timestamp > 300000;
-                const isAlreadyDone = currentStacksNames.includes(stack.name);
-                return !isExpired && !isAlreadyDone;
-            });
+        const activeStacks = creating.filter(stack => {
+            const isExpired = now - stack.timestamp > 300000;
+            const isAlreadyDone = currentStacksNames.includes(stack.name);
+            return !isExpired && !isAlreadyDone;
+        });
 
-            if (activeStacks.length !== creating.length) {
-                localStorage.setItem('creatingStacks', JSON.stringify(activeStacks));
-            }
+        if (activeStacks.length !== creating.length) {
+            localStorage.setItem('creatingStacks', JSON.stringify(activeStacks));
+        }
 
-            const creatingMap = {};
-            activeStacks.forEach(stack => {
-                creatingMap[stack.name] = true;
-            });
-            setCreatingStacks(creatingMap);
-        };
-
-        checkCreatingStacks();
+        const creatingMap = {};
+        activeStacks.forEach(stack => {
+            creatingMap[stack.name] = true;
+        });
+        setCreatingStacks(creatingMap);
     }, [stacks]);
+
+    useEffect(() => {
+        checkCreatingStacks();
+    }, [checkCreatingStacks]);
 
     useEffect(() => {
         fetchDashboardData();
@@ -120,7 +120,7 @@ function ContainerList() {
         return () => clearInterval(interval);
     }, [fetchDashboardData]);
 
-    const checkStackHealth = async (stackId, stackName) => {
+    const checkStackHealth = useCallback(async (stackId, stackName) => {
         if (!stackId) {
             setError('Stack ID not found');
             return;
@@ -132,21 +132,23 @@ function ContainerList() {
         } catch (err) {
             setError('Stack check error');
         }
-    };
+    }, [API_URL]);
 
-    const restartStack = async (stackId, stackName) => {
+    const restartStack = useCallback(async (stackId, stackName) => {
         if (!stackId) {
             setError('Stack ID not found');
             return;
         }
         try {
             await axios.post(`${API_URL}/sandboxes/${stackId}/restart`);
+            // Trigger refresh after restart
+            startTransition(() => fetchDashboardData());
         } catch (err) {
             setError('Stack restart error');
         }
-    };
+    }, [API_URL, fetchDashboardData, startTransition]);
 
-    const deleteStack = async () => {
+    const deleteStack = useCallback(async () => {
         if (!deleteDialog.stackName) {
             setError('Stack name not found');
             return;
@@ -154,16 +156,18 @@ function ContainerList() {
         try {
             await axios.post(`${API_URL}/docker/stacks/${deleteDialog.stackName}/delete`);
             setDeleteDialog({ open: false, stackId: null, stackName: '' });
+            // Refresh after delete
+            startTransition(() => fetchDashboardData());
         } catch (err) {
             setError('Stack deletion error');
         }
-    };
+    }, [API_URL, deleteDialog.stackName, fetchDashboardData, startTransition]);
 
-    const handleManualRefresh = () => {
-        fetchDashboardData(true);
-    };
+    const handleManualRefresh = useCallback(() => {
+        startTransition(() => fetchDashboardData(true));
+    }, [fetchDashboardData, startTransition]);
 
-    const getStatusColor = (status) => {
+    const getStatusColor = useCallback((status) => {
         switch(status) {
             case 'running': return 'success';
             case 'partial': return 'warning';
@@ -171,9 +175,9 @@ function ContainerList() {
             case 'failed': return 'error';
             default: return 'default';
         }
-    };
+    }, []);
 
-    const getStatusText = (status) => {
+    const getStatusText = useCallback((status) => {
         switch(status) {
             case 'running': return 'Запущен';
             case 'partial': return 'Частично';
@@ -183,9 +187,9 @@ function ContainerList() {
             case 'failed': return 'Ошибка';
             default: return status;
         }
-    };
+    }, []);
 
-    const getStackStatus = (stack) => {
+    const getStackStatus = useCallback((stack) => {
         if (creatingStacks[stack.name]) return 'creating';
         if (!stack.containers || stack.containers.length === 0) return 'no_containers';
         const allRunning = stack.containers.every(c => c.state === 'running');
@@ -193,7 +197,7 @@ function ContainerList() {
         const anyRunning = stack.containers.some(c => c.state === 'running');
         if (anyRunning) return 'partial';
         return 'stopped';
-    };
+    }, [creatingStacks]);
 
     if (loading && stacks.length === 0) {
         return (
@@ -310,12 +314,14 @@ function ContainerList() {
                                             <Typography>Статистика работы</Typography>
                                         </AccordionSummary>
                                         <AccordionDetails sx={{ overflowX: 'auto', p: 0 }}>
-                                            <Box sx={{ minWidth: '600px', width: '100%' }}>
-                                                <UptimeChart
-                                                    stackId={stack.id}
-                                                    stackName={stack.name}
-                                                />
-                                            </Box>
+                                            <Suspense fallback={<Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress size={40} /></Box>}>
+                                                <Box sx={{ minWidth: '600px', width: '100%' }}>
+                                                    <LazyUptimeChart
+                                                        stackId={stack.id}
+                                                        stackName={stack.name}
+                                                    />
+                                                </Box>
+                                            </Suspense>
                                         </AccordionDetails>
                                     </Accordion>
 
@@ -374,4 +380,107 @@ function ContainerList() {
     );
 }
 
-export default ContainerList;
+const StackCard = memo(({ stack, creatingStacks, getStackStatus, getStatusColor, getStatusText, checkStackHealth, restartStack, setDeleteDialog }) => {
+    const status = getStackStatus(stack);
+
+    return (
+        <Grid width="100%" key={stack.id || stack.name}>
+            <Card>
+                <CardContent>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Box display="flex" gap={1}>
+                            <Chip
+                                label={stack.git_branch || 'develop'}
+                                size="small"
+                                color={stack.git_branch === 'master' ? 'primary' : 'secondary'}
+                                variant="outlined"
+                            />
+                            <Chip
+                                label={stack.version || 'v1.0.0'}
+                                size="small"
+                                variant="outlined"
+                            />
+                            <Chip
+                                label={status === 'running' ? 'Работает' : status === 'partial' ? 'Частично' : 'Остановлен'}
+                                size="small"
+                                color={getStatusColor(status === 'running' ? 'running' : status === 'partial' ? 'partial' : 'stopped')}
+                            />
+                        </Box>
+                    </Box>
+
+                    <Typography variant="h6" gutterBottom>
+                        {stack.name}
+                    </Typography>
+
+                    {stack.containers && stack.containers.map(container => (
+                        <Box key={container.id} sx={{ ml: 2, mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                            <Box display="flex" justifyContent="space-between" alignItems="center">
+                                <Typography variant="body2">
+                                    <strong>{container.name?.replace(`${stack.name}_`, '')}:</strong> {container.image}
+                                </Typography>
+                                <Chip
+                                    label={getStatusText(container.state)}
+                                    color={getStatusColor(container.state)}
+                                    size="small"
+                                />
+                            </Box>
+                        </Box>
+                    ))}
+
+                    <Accordion sx={{ mt: 2 }}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                            <Typography>Статистика работы</Typography>
+                        </AccordionSummary>
+                        <AccordionDetails sx={{ overflowX: 'auto', p: 0 }}>
+                            <Suspense fallback={<Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress size={40} /></Box>}>
+                                <Box sx={{ minWidth: '600px', width: '100%' }}>
+                                    <LazyUptimeChart
+                                        stackId={stack.id}
+                                        stackName={stack.name}
+                                    />
+                                </Box>
+                            </Suspense>
+                        </AccordionDetails>
+                    </Accordion>
+
+                    <Box display="flex" justifyContent="flex-end" mt={2}>
+                        <Button
+                            size="small"
+                            color="info"
+                            onClick={() => checkStackHealth(stack.id, stack.name)}
+                            startIcon={<HealthAndSafetyIcon />}
+                            sx={{ mr: 1 }}
+                            disabled={!stack.id}
+                        >
+                            Проверить
+                        </Button>
+                        <Button
+                            size="small"
+                            color="primary"
+                            onClick={() => restartStack(stack.id, stack.name)}
+                            startIcon={<RestartAltIcon />}
+                            sx={{ mr: 1 }}
+                            disabled={!stack.id}
+                        >
+                            Перезапуск
+                        </Button>
+                        <Button
+                            size="small"
+                            color="error"
+                            onClick={() => setDeleteDialog({
+                                open: true,
+                                stackId: stack.id,
+                                stackName: stack.name
+                            })}
+                            startIcon={<DeleteOutlined />}
+                        >
+                            Удалить
+                        </Button>
+                    </Box>
+                </CardContent>
+            </Card>
+        </Grid>
+    );
+});
+
+export default memo(ContainerList);

@@ -1,11 +1,10 @@
-import React, { createContext } from 'react';
-import { Container, AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
+import React, { Suspense, lazy, createContext } from 'react';
+import { AppBar, Toolbar, Typography, Box, Button, CircularProgress } from '@mui/material';
 import { BrowserRouter, Routes, Route, Link as RouterLink } from 'react-router-dom';
 
-
-import Dashboard from './pages/Dashboard';
-import CreateStack from './pages/CreateStack';
-import History from './pages/History';
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const CreateStack = lazy(() => import('./pages/CreateStack'));
+const History = lazy(() => import('./pages/History'));
 
 export const ApiContext = createContext();
 
@@ -51,11 +50,17 @@ function App() {
                         </Toolbar>
                     </AppBar>
 
-                    <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/create" element={<CreateStack />} />
-                        <Route path="/history" element={<History />} />
-                    </Routes>
+                    <Suspense fallback={
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+                            <CircularProgress />
+                        </Box>
+                    }>
+                        <Routes>
+                            <Route path="/" element={<Dashboard />} />
+                            <Route path="/create" element={<CreateStack />} />
+                            <Route path="/history" element={<History />} />
+                        </Routes>
+                    </Suspense>
                 </Box>
             </BrowserRouter>
         </ApiContext.Provider>

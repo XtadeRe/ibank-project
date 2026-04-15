@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useContext } from 'react';
-import { Container, Typography, Paper, List, ListItem, ListItemText, Chip, Box, Button, LinearProgress } from '@mui/material'; // Добавим Button и LinearProgress для примера
+import React, { useEffect, useState, useContext, useCallback, memo, useTransition } from 'react';
+import { Container, Typography, Paper, List, ListItem, ListItemText, Chip, Box, Button, LinearProgress } from '@mui/material';
 import axios from 'axios';
 import { ApiContext } from '../App';
 
@@ -9,10 +9,10 @@ function History() {
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [error, setError] = useState(null);
+    const [isPending, startTransition] = useTransition();
     const API_URL = useContext(ApiContext);
 
-    // Функция для загрузки истории
-    const fetchHistory = async (page = 1, append = false) => {
+    const fetchHistory = useCallback(async (page = 1, append = false) => {
         if (page === 1) {
             setLoading(true);
             setError(null);
@@ -29,7 +29,6 @@ function History() {
                 setHistory(newHistory);
             }
 
-
             setHasMore(current_page < last_page);
 
         } catch (err) {
@@ -40,19 +39,42 @@ function History() {
                 setLoading(false);
             }
         }
-    };
-
+    }, [API_URL]);
 
     useEffect(() => {
-        console.log('History component mounted, fetching first page...');
         fetchHistory(1, false);
-    }, []);
+    }, [fetchHistory]);
 
-    const loadMore = () => {
+    const loadMore = useCallback(() => {
         const nextPage = currentPage + 1;
-        fetchHistory(nextPage, true);
-        setCurrentPage(nextPage);
-    };
+        startTransition(() => {
+            fetchHistory(nextPage, true);
+            setCurrentPage(nextPage);
+        });
+    }, [currentPage, fetchHistory, startTransition]);
+
+    const HistoryItem = memo(({ item }) => (
+        <ListItem key={item.id || `${item.sandbox_id}-${item.action}-${item.created_at}`} divider>
+            <ListItemText
+                primary={item.description || item.message}
+                secondary={new Date(item.created_at).toLocaleString('ru-RU', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                })}
+            />
+            {item.action?.includes('jenkins') && (
+                <Chip
+                    size="small"
+                    label="Jenkins"
+                    color="secondary"
+                />
+            )}
+        </ListItem>
+    ));
 
     if (loading && history.length === 0) {
         return (
@@ -73,7 +95,6 @@ function History() {
 
             {error && <Typography color="error">Ошибка: {error}</Typography>}
 
-            {/* История действий */}
             <Paper>
                 <List>
                     {history.length === 0 ? (
@@ -81,35 +102,14 @@ function History() {
                             <ListItemText primary={loading ? 'Загрузка...' : 'История пуста'} />
                         </ListItem>
                     ) : (
-                        history.map(item => (
-                            <ListItem key={item.id || `${item.sandbox_id}-${item.action}-${item.created_at}`} divider> {/* Лучше использовать уникальный id */}
-                                <ListItemText
-                                    primary={item.description || item.message}
-                                    secondary={new Date(item.created_at).toLocaleString('ru-RU', {
-                                        year: 'numeric',
-                                        month: '2-digit',
-                                        day: '2-digit',
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        second: '2-digit'
-                                    })}
-                                />
-                                {item.action?.includes('jenkins') && (
-                                    <Chip
-                                        size="small"
-                                        label="Jenkins"
-                                        color="secondary"
-                                    />
-                                )}
-                            </ListItem>
-                        ))
+                        history.map(item => <HistoryItem key={item.id || `${item.sandbox_id}-${item.action}-${item.created_at}`} item={item} />)
                     )}
                 </List>
 
                 {hasMore && (
                     <Box display="flex" justifyContent="center" p={2}>
-                        <Button onClick={loadMore} variant="outlined">
-                            Загрузить еще
+                        <Button onClick={loadMore} variant="outlined" disabled={isPending}>
+                            {isPending ? 'Загрузка...' : 'Загрузить еще'}
                         </Button>
                     </Box>
                 )}
@@ -126,4 +126,4 @@ function History() {
     );
 }
 
-export default History;
+export default memo(History);
