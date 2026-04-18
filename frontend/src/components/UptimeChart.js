@@ -1,4 +1,3 @@
-// UptimeChart.js
 import React, { useEffect, useState } from 'react';
 import {
     Box, Card, CardContent, Typography, CircularProgress,
@@ -13,62 +12,49 @@ import { ApiContext } from '../App';
 
 function UptimeChart({ stackId, stackName }) {
     const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true); // Инициализируем как true
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
     const API_URL = React.useContext(ApiContext);
 
-    // --- useRef для отслеживания mounted состояния ---
     const isMountedRef = React.useRef(true);
     useEffect(() => {
         isMountedRef.current = true;
         return () => { isMountedRef.current = false; };
     }, []);
-    // ---
 
-    // --- useCallback для fetchUptimeData ---
     const fetchUptimeData = React.useCallback(async () => {
-        // Проверяем mounted перед выполнением асинхронного кода
         if (!isMountedRef.current) return;
 
         const identifier = stackId || stackName;
         if (!identifier) {
-            // Если идентификатора нет, устанавливаем соответствующее состояние и выходим
-            // setLoading(false); // Не устанавливаем здесь, так как основной useEffect это сделает, если нет ID
             setError('ID стека не указан.');
             setData(null);
             return;
         }
 
-        // Устанавливаем состояние загрузки перед выполнением запроса
         if (isMountedRef.current) {
-            setLoading(true); // <-- ПЕРЕМЕЩЕНО СЮДА
+            setLoading(true);
         }
 
         try {
-            // Добавляем кэширование на 30 секунд
             const response = await axios.get(`${API_URL}/sandboxes/${identifier}/uptime`, {
                 headers: {
                     'Cache-Control': 'max-age=30'
                 },
-                // cancelToken можно оставить, но для простоты уберем, если не требуется сложная логика отмены
-                // cancelToken: new axios.CancelToken(cancel => { ... })
             });
 
-            // Проверяем mounted перед обновлением состояния
             if (isMountedRef.current) {
                 setData(response.data);
-                setError(''); // Сбрасываем ошибку при успешной загрузке
+                setError('');
             }
         } catch (err) {
-            // Проверяем, была ли ошибка отмены запроса (если использовали cancelToken)
             if (axios.isCancel(err)) {
                 console.log('Request canceled:', err.message);
-                return; // Просто выходим, не обновляя состояние
+                return;
             }
 
             console.error('Uptime fetch error:', err);
-            // Проверяем mounted перед обновлением состояния
             if (isMountedRef.current) {
                 let errorMsg = 'Ошибка загрузки статистики';
                 if (err.response?.status === 404) {
@@ -80,55 +66,39 @@ function UptimeChart({ stackId, stackName }) {
                 setData(null);
             }
         } finally {
-            // Проверяем mounted перед обновлением состояния
             if (isMountedRef.current) {
-                setLoading(false); // <-- ПЕРЕМЕЩЕНО СЮДА: всегда сбрасываем загрузку после завершения запроса
+                setLoading(false);
             }
         }
     }, [API_URL, stackId, stackName, isMountedRef]);
-    // ---
 
-
-    // --- Обновлённый useEffect ---
     useEffect(() => {
-        // Проверяем наличие stackId при монтировании или изменении
         if (!stackId) {
-            // Если stackId нет, не запускаем fetch, устанавливаем ошибку и останавливаем загрузку
             setError('Статистика недоступна для этого стека.');
             setData(null);
-            setLoading(false); // <-- ВАЖНО: Останавливаем загрузку, если нет ID
-            return; // Выходим, не устанавливая интервалы
+            setLoading(false);
+            return;
         }
 
-        // Если ID есть, сбрасываем ошибку (если была от предыдущего состояния без ID)
         setError('');
 
-        // Запускаем загрузку данных немедленно
-        fetchUptimeData(); // Вызовет setLoading(true) внутри себя
+        fetchUptimeData();
 
-        // Устанавливаем интервал для регулярного обновления данных
-        const interval = setInterval(fetchUptimeData, 120000);
+        const interval = setInterval(fetchUptimeData, 60000);
 
-        // Устанавливаем интервал для обновления текущего времени
         const timeInterval = setInterval(() => {
             if (isMountedRef.current) {
                 setCurrentTime(new Date());
             }
         }, 1000);
 
-        // Функция очистки при размонтировании или повторном запуске эффекта
         return () => {
             clearInterval(interval);
             clearInterval(timeInterval);
         };
-        // Зависимости: useEffect сработает при изменении stackId
-        // fetchUptimeData зависит от stackId, API_URL и isMountedRef, поэтому она стабильна в рамках одного render-цикла
-        // error не включаем в зависимости, так как fetchUptimeData сама управляет setError, и включение error вызвало бы цикл
-    }, [stackId, fetchUptimeData]); // <-- Убрали error из зависимостей
-    // ---
+    }, [stackId, fetchUptimeData]);
 
 
-    // --- Условия рендера ---
     if (!stackId) {
         return (
             <Alert severity="info" sx={{ mt: 2 }}>
@@ -145,7 +115,6 @@ function UptimeChart({ stackId, stackName }) {
         );
     }
 
-    // Явно проверяем, что data существует и имеет нужную структуру перед рендерингом графика
     if (error || !data || !Array.isArray(data.chart) || typeof data.uptime !== 'object') {
         return (
             <Alert severity="info" sx={{ mt: 2 }}>
@@ -154,7 +123,6 @@ function UptimeChart({ stackId, stackName }) {
         );
     }
 
-    // --- Рендеринг графика ---
     const getUptimeColor = (value) => {
         if (value >= 99.9) return '#4caf50';
         if (value >= 70) return '#8bc34a';
@@ -166,10 +134,8 @@ function UptimeChart({ stackId, stackName }) {
 
     return (
         <Box>
-            {/* Рендер статистики */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
                 {['day', 'week', 'month'].map((period) => (
-                    // Убедитесь, что data.uptime[period] определён
                     data.uptime && data.uptime[period] !== undefined && (
                         <Grid item xs={4} key={period}>
                             <Paper
@@ -192,7 +158,6 @@ function UptimeChart({ stackId, stackName }) {
                 ))}
             </Grid>
 
-            {/* Рендер графика */}
             <Card>
                 <CardContent>
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -206,7 +171,6 @@ function UptimeChart({ stackId, stackName }) {
                         />
                     </Box>
 
-                    {/* Обёртка для безопасного рендеринга ResponsiveContainer */}
                     {data.chart && data.chart.length > 0 ? (
                         <Box sx={{ width: '100%', height: 350, minWidth: '550px' }}>
                             <ResponsiveContainer>

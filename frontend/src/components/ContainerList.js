@@ -40,6 +40,13 @@ function ContainerList() {
     const [deleteDialog, setDeleteDialog] = useState({ open: false, stackId: null, stackName: '' });
     const [lastUpdate, setLastUpdate] = useState(null);
     const [isPending, startTransition] = useTransition();
+    const [checkDialog, setCheckDialog] = useState({
+        open: false,
+        stackId: null,
+        stackName: '',
+        result: null,
+        loading: false
+    });
 
     const API_URL = useContext(ApiContext);
 
@@ -126,14 +133,46 @@ function ContainerList() {
             setError('ID стека не найден');
             return;
         }
+
+        setCheckDialog({
+            open: true,
+            stackId,
+            stackName,
+            result: null,
+            loading: true
+        });
+
         try {
-            await axios.post(`${API_URL}/sandboxes/${stackId}/check-health`);
-            setError('Проверка завершена');
-            setTimeout(() => setError(''), 3000);
+            const response = await axios.post(`${API_URL}/sandboxes/${stackId}/check-health`);
+
+            setCheckDialog(prev => ({
+                ...prev,
+                result: response.data,
+                loading: false
+            }));
         } catch (err) {
-            setError('Ошибка проверки стека');
+            console.error('Health check error:', err);
+            setCheckDialog(prev => ({
+                ...prev,
+                result: {
+                    success: false,
+                    message: err.response?.data?.message || err.message || 'Ошибка проверки стека',
+                    error: err.response?.data?.error || err.message
+                },
+                loading: false
+            }));
         }
     }, [API_URL]);
+
+    const closeCheckDialog = useCallback(() => {
+        setCheckDialog({
+            open: false,
+            stackId: null,
+            stackName: '',
+            result: null,
+            loading: false
+        });
+    }, []);
 
     const restartStack = useCallback(async (stackId, stackName) => {
         if (!stackId) {
@@ -181,7 +220,7 @@ function ContainerList() {
             case 'running': return 'Запущен';
             case 'partial': return 'Частично';
             case 'stopped': return 'Остановлен';
-            case 'created': return 'Ожидает запуска'
+            case 'created': return 'Ожидает запуска';
             case 'exited': return 'Остановлен';
             case 'paused': return 'Пауза';
             case 'failed': return 'Ошибка';
@@ -222,6 +261,106 @@ function ContainerList() {
                     </Button>
                     <Button onClick={deleteStack} color="error" variant="contained">
                         Удалить
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={checkDialog.open}
+                onClose={closeCheckDialog}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>
+                    Результат проверки стека "{checkDialog.stackName}"
+                </DialogTitle>
+                <DialogContent>
+                    {checkDialog.loading ? (
+                        <Box display="flex" flexDirection="column" alignItems="center" py={3}>
+                            <CircularProgress />
+                            <Typography sx={{ mt: 2 }}>Выполняется проверка состояния...</Typography>
+                        </Box>
+                    ) : checkDialog.result && (
+                        <Box>
+                            <Alert
+                                severity={checkDialog.result.success ? 'success' : 'error'}
+                                sx={{ mb: 2 }}
+                            >
+                                {checkDialog.result.message || (checkDialog.result.success ? 'Проверка завершена успешно' : 'Обнаружены проблемы')}
+                            </Alert>
+
+                            {checkDialog.result.containers && checkDialog.result.containers.length > 0 && (
+                                <>
+                                    <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                                        Состояние контейнеров:
+                                    </Typography>
+                                    {checkDialog.result.containers.map((container, idx) => (
+                                        <Paper key={idx} sx={{ p: 2, mb: 1, bgcolor: '#f5f5f5' }}>
+                                            <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                <Box>
+                                                    <Typography variant="body2">
+                                                        <strong>{container.name}</strong>
+                                                    </Typography>
+                                                    <Typography variant="caption" color="textSecondary">
+                                                        {container.image}
+                                                    </Typography>
+                                                </Box>
+                                                <Chip
+                                                    label={getStatusText(container.state)}
+                                                    color={getStatusColor(container.state)}
+                                                    size="small"
+                                                />
+                                            </Box>
+                                            {container.error && (
+                                                <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+                                                    Ошибка: {container.error}
+                                                </Typography>
+                                            )}
+                                        </Paper>
+                                    ))}
+                                </>
+                            )}
+
+                            {checkDialog.result.health_status && (
+                                <>
+                                    <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                                        Healthcheck статус:
+                                    </Typography>
+                                    <Paper sx={{ p: 2, bgcolor: '#f5f5f5' }}>
+                                        <Typography variant="body2">
+                                            Статус: <strong>{checkDialog.result.health_status}</strong>
+                                        </Typography>
+                                    </Paper>
+                                </>
+                            )}
+
+                            {checkDialog.result.details && (
+                                <>
+                                    <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                                        Детали:
+                                    </Typography>
+                                    <Paper sx={{ p: 2, bgcolor: '#f5f5f5' }}>
+                                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                            {typeof checkDialog.result.details === 'object'
+                                                ? JSON.stringify(checkDialog.result.details, null, 2)
+                                                : checkDialog.result.details}
+                                        </pre>
+                                    </Paper>
+                                </>
+                            )}
+
+                            {checkDialog.result.error && (
+                                <Alert severity="error" sx={{ mt: 2 }}>
+                                    <Typography variant="subtitle2">Детали ошибки:</Typography>
+                                    <Typography variant="body2">{checkDialog.result.error}</Typography>
+                                </Alert>
+                            )}
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeCheckDialog} variant="contained">
+                        Закрыть
                     </Button>
                 </DialogActions>
             </Dialog>
