@@ -52,7 +52,7 @@ class HealthCheck extends Model
         return \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($sandboxId, $hours) {
             $checks = self::where('sandbox_id', $sandboxId)
                 ->where('created_at', '>=', now()->subHours($hours))
-                ->select('is_available')
+                ->select('id', 'is_available')
                 ->get();
 
             if ($checks->isEmpty()) {

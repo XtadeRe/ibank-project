@@ -20,12 +20,26 @@ class Sandbox extends Model
         'last_deployed' => 'datetime',
     ];
 
+    /**
+     * Scope для последних 100 активных sandbox
+     */
+    public function scopeRecent($query)
+    {
+        return $query->select(['id', 'name', 'git_branch', 'version', 'status', 'created_at'])->latest()->limit(100);
+    }
+
+    public function scopeRunning($query)
+    {
+        return $query->where('status', 'running');
+    }
+
     public function healthChecks()
     {
         return $this->hasMany(HealthCheck::class, 'sandbox_id', 'id');
     }
 
-    public function incidents() {
+    public function incidents() 
+    {
         return $this->hasMany(Incident::class);
     }
 

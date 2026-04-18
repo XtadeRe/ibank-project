@@ -50,7 +50,6 @@ function ContainerList() {
             setLoading(true);
             const startTime = performance.now();
 
-            // Retry logic
             let response;
             let attempts = 0;
             const maxAttempts = 3;
@@ -69,15 +68,17 @@ function ContainerList() {
             }
 
             if (response.data.success) {
-                setStacks(response.data.stacks);
+                const validStacks = response.data.stacks.filter(stack => stack.id != null && stack.id !== undefined && stack.id !== '');
+                setStacks(validStacks);
                 setLastUpdate(new Date());
-                console.log(`Loaded ${response.data.stacks.length} stacks in ${response.data.duration_ms || (performance.now() - startTime)}ms`);
+                console.log(`Загружено ${validStacks.length} стеков из ${response.data.stacks.length} за ${response.data.duration_ms || (performance.now() - startTime)}мс`);
+                console.log(`Отфильтровано ${response.data.stacks.length - validStacks.length} стеков без ID`);
             } else {
-                setError(response.data.error || 'Load error');
+                setError(response.data.error || 'Ошибка загрузки');
             }
         } catch (err) {
-            console.error('Fetch error:', err);
-            setError('Server connection error');
+            console.error('Ошибка получения данных:', err);
+            setError('Ошибка соединения с сервером');
         } finally {
             setLoading(false);
             if (showRefresh) setRefreshing(false);
@@ -122,44 +123,42 @@ function ContainerList() {
 
     const checkStackHealth = useCallback(async (stackId, stackName) => {
         if (!stackId) {
-            setError('Stack ID not found');
+            setError('ID стека не найден');
             return;
         }
         try {
             await axios.post(`${API_URL}/sandboxes/${stackId}/check-health`);
-            setError('Check completed');
+            setError('Проверка завершена');
             setTimeout(() => setError(''), 3000);
         } catch (err) {
-            setError('Stack check error');
+            setError('Ошибка проверки стека');
         }
     }, [API_URL]);
 
     const restartStack = useCallback(async (stackId, stackName) => {
         if (!stackId) {
-            setError('Stack ID not found');
+            setError('ID стека не найден');
             return;
         }
         try {
             await axios.post(`${API_URL}/sandboxes/${stackId}/restart`);
-            // Trigger refresh after restart
             startTransition(() => fetchDashboardData());
         } catch (err) {
-            setError('Stack restart error');
+            setError('Ошибка перезапуска стека');
         }
     }, [API_URL, fetchDashboardData, startTransition]);
 
     const deleteStack = useCallback(async () => {
         if (!deleteDialog.stackName) {
-            setError('Stack name not found');
+            setError('Имя стека не найдено');
             return;
         }
         try {
             await axios.post(`${API_URL}/docker/stacks/${deleteDialog.stackName}/delete`);
             setDeleteDialog({ open: false, stackId: null, stackName: '' });
-            // Refresh after delete
             startTransition(() => fetchDashboardData());
         } catch (err) {
-            setError('Stack deletion error');
+            setError('Ошибка удаления стека');
         }
     }, [API_URL, deleteDialog.stackName, fetchDashboardData, startTransition]);
 
@@ -184,6 +183,7 @@ function ContainerList() {
             case 'stopped': return 'Остановлен';
             case 'created': return 'Ожидает запуска'
             case 'exited': return 'Остановлен';
+            case 'paused': return 'Пауза';
             case 'failed': return 'Ошибка';
             default: return status;
         }
@@ -210,33 +210,33 @@ function ContainerList() {
     return (
         <Box sx={{ p: 3, maxWidth: '1000px', mx: 'auto' }}>
             <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, stackId: null, stackName: '' })}>
-                <DialogTitle>Delete Stack</DialogTitle>
+                <DialogTitle>Удаление стека</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
-                        Are you sure you want to delete the stack "{deleteDialog.stackName}"?
+                        Вы уверены, что хотите удалить стек "{deleteDialog.stackName}"?
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setDeleteDialog({ open: false, stackId: null, stackName: '' })}>
-                        Cancel
+                        Отмена
                     </Button>
                     <Button onClick={deleteStack} color="error" variant="contained">
-                        Delete
+                        Удалить
                     </Button>
                 </DialogActions>
             </Dialog>
 
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h4">
-                    Менеджмент стеков
+                    Управление стеками
                 </Typography>
                 <Box display="flex" alignItems="center" gap={2}>
                     {lastUpdate && (
                         <Typography variant="caption" color="textSecondary">
-                            Updated: {lastUpdate.toLocaleTimeString()}
+                            Обновлено: {lastUpdate.toLocaleTimeString()}
                         </Typography>
                     )}
-                    <Tooltip title="Refresh list">
+                    <Tooltip title="Обновить список">
                         <IconButton onClick={handleManualRefresh} disabled={refreshing}>
                             <RefreshIcon />
                         </IconButton>
@@ -245,7 +245,7 @@ function ContainerList() {
             </Box>
 
             {error && (
-                <Alert severity={error.includes('completed') ? 'success' : 'error'}
+                <Alert severity={error.includes('завершена') ? 'success' : 'error'}
                        sx={{ mb: 2 }} onClose={() => setError('')}>
                     {error}
                 </Alert>
@@ -254,7 +254,7 @@ function ContainerList() {
             {Object.keys(creatingStacks).length > 0 && (
                 <Paper sx={{ p: 2, mb: 3, bgcolor: '#e3f2fd' }}>
                     <Typography variant="subtitle1" gutterBottom>
-                        Creating stacks: {Object.keys(creatingStacks).join(', ')}
+                        Создание стеков: {Object.keys(creatingStacks).join(', ')}
                     </Typography>
                     <LinearProgress sx={{ mt: 1 }} />
                 </Paper>
@@ -369,118 +369,15 @@ function ContainerList() {
             {stacks.length === 0 && !loading && Object.keys(creatingStacks).length === 0 && (
                 <Paper sx={{ p: 3, textAlign: 'center' }}>
                     <Typography variant="body1" color="textSecondary" gutterBottom>
-                        No stacks created
+                        Стеки не созданы
                     </Typography>
                     <Button variant="contained" color="primary" component="a" href="/create">
-                        Create New Stack
+                        Создать новый стек
                     </Button>
                 </Paper>
             )}
         </Box>
     );
 }
-
-const StackCard = memo(({ stack, creatingStacks, getStackStatus, getStatusColor, getStatusText, checkStackHealth, restartStack, setDeleteDialog }) => {
-    const status = getStackStatus(stack);
-
-    return (
-        <Grid width="100%" key={stack.id || stack.name}>
-            <Card>
-                <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Box display="flex" gap={1}>
-                            <Chip
-                                label={stack.git_branch || 'develop'}
-                                size="small"
-                                color={stack.git_branch === 'master' ? 'primary' : 'secondary'}
-                                variant="outlined"
-                            />
-                            <Chip
-                                label={stack.version || 'v1.0.0'}
-                                size="small"
-                                variant="outlined"
-                            />
-                            <Chip
-                                label={status === 'running' ? 'Работает' : status === 'partial' ? 'Частично' : 'Остановлен'}
-                                size="small"
-                                color={getStatusColor(status === 'running' ? 'running' : status === 'partial' ? 'partial' : 'stopped')}
-                            />
-                        </Box>
-                    </Box>
-
-                    <Typography variant="h6" gutterBottom>
-                        {stack.name}
-                    </Typography>
-
-                    {stack.containers && stack.containers.map(container => (
-                        <Box key={container.id} sx={{ ml: 2, mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                            <Box display="flex" justifyContent="space-between" alignItems="center">
-                                <Typography variant="body2">
-                                    <strong>{container.name?.replace(`${stack.name}_`, '')}:</strong> {container.image}
-                                </Typography>
-                                <Chip
-                                    label={getStatusText(container.state)}
-                                    color={getStatusColor(container.state)}
-                                    size="small"
-                                />
-                            </Box>
-                        </Box>
-                    ))}
-
-                    <Accordion sx={{ mt: 2 }}>
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                            <Typography>Статистика работы</Typography>
-                        </AccordionSummary>
-                        <AccordionDetails sx={{ overflowX: 'auto', p: 0 }}>
-                            <Suspense fallback={<Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress size={40} /></Box>}>
-                                <Box sx={{ minWidth: '600px', width: '100%' }}>
-                                    <LazyUptimeChart
-                                        stackId={stack.id}
-                                        stackName={stack.name}
-                                    />
-                                </Box>
-                            </Suspense>
-                        </AccordionDetails>
-                    </Accordion>
-
-                    <Box display="flex" justifyContent="flex-end" mt={2}>
-                        <Button
-                            size="small"
-                            color="info"
-                            onClick={() => checkStackHealth(stack.id, stack.name)}
-                            startIcon={<HealthAndSafetyIcon />}
-                            sx={{ mr: 1 }}
-                            disabled={!stack.id}
-                        >
-                            Проверить
-                        </Button>
-                        <Button
-                            size="small"
-                            color="primary"
-                            onClick={() => restartStack(stack.id, stack.name)}
-                            startIcon={<RestartAltIcon />}
-                            sx={{ mr: 1 }}
-                            disabled={!stack.id}
-                        >
-                            Перезапуск
-                        </Button>
-                        <Button
-                            size="small"
-                            color="error"
-                            onClick={() => setDeleteDialog({
-                                open: true,
-                                stackId: stack.id,
-                                stackName: stack.name
-                            })}
-                            startIcon={<DeleteOutlined />}
-                        >
-                            Удалить
-                        </Button>
-                    </Box>
-                </CardContent>
-            </Card>
-        </Grid>
-    );
-});
 
 export default memo(ContainerList);

@@ -13,7 +13,7 @@ class HistoryController extends Controller
 
         $perPage = $request->input('per_page', 50);
 
-        $history = History::orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
+$history = History::select(['id', 'sandbox_id', 'action', 'message', 'created_at'])->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json($history);
     }
