@@ -25,10 +25,35 @@
 </div>
 
 <script>
-    // Порт будет заменен сервером автоматически
-    const API_URL = 'http://localhost:8104';
+    let API_URL = null;
+
+    async function getApiUrl() {
+        try {
+            const res = await fetch('http://localhost:3001/api/stacks/javaaa123/info');
+            const data = await res.json();
+            if (data.success && data.urls && data.urls.app) {
+                API_URL = data.urls.app;
+                console.log('API_URL установлен:', API_URL);
+                return true;
+            }
+        } catch (e) {
+            console.log('Стек не готов, повтор через 2с...');
+        }
+        return false;
+    }
+
+    async function waitForApiUrl(maxRetries = 30) {
+        for (let i = 0; i < maxRetries; i++) {
+            if (await getApiUrl()) return true;
+            await new Promise(r => setTimeout(r, 2000));
+        }
+        console.error('Не удалось получить порт API');
+        API_URL = 'http://localhost:8080'; // fallback
+        return true;
+    }
 
     async function loadBalance() {
+        if (!API_URL) throw new Error('API_URL не установлен');
         const res = await fetch(`${API_URL}/api/balance`);
         const data = await res.json();
         document.getElementById('balance').innerText = data.balance;
@@ -55,11 +80,11 @@
         });
         const data = await res.json();
         if (data.success) {
-            document.getElementById('message').innerText = '✅ Пополнено';
+            document.getElementById('message').innerText = 'Пополнено';
             loadBalance();
             loadTransactions();
         } else {
-            document.getElementById('message').innerText = '❌ ' + data.error;
+            document.getElementById('message').innerText = data.error;
         }
     }
 
@@ -72,17 +97,20 @@
         });
         const data = await res.json();
         if (data.success) {
-            document.getElementById('message').innerText = '✅ Снято';
+            document.getElementById('message').innerText = 'Снято';
             loadBalance();
             loadTransactions();
         } else {
-            document.getElementById('message').innerText = '❌ ' + data.error;
+            document.getElementById('message').innerText = data.error;
         }
     }
 
-    loadBalance();
-    loadTransactions();
-    setInterval(() => { loadBalance(); loadTransactions(); }, 5000);
+    // Инициализация
+    waitForApiUrl().then(() => {
+        loadBalance();
+        loadTransactions();
+        setInterval(() => { loadBalance(); loadTransactions(); }, 5000);
+    });
 </script>
 </body>
 </html>
