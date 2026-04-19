@@ -25,11 +25,12 @@
 </div>
 
 <script>
-    let API_URL = null;
+
+    const API_URL = 'http://localhost:8103'
 
     async function getApiUrl() {
         try {
-            const res = await fetch('http://localhost:3001/api/stacks/javaaa123/info');
+            const res = await fetch(`${API_URL}/api/balance/info`);
             const data = await res.json();
             if (data.success && data.urls && data.urls.app) {
                 API_URL = data.urls.app;

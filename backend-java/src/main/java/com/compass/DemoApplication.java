@@ -106,10 +106,20 @@ class BankController {
         return response;
     }
 
-    @GetMapping("/health")
+@GetMapping("/health")
     public Map<String, String> health() {
         Map<String, String> response = new HashMap<>();
         response.put("status", "ok");
+        return response;
+    }
+
+    @GetMapping("/balance/info")
+    public Map<String, Object> getApiInfo() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        Map<String, String> urls = new HashMap<>();
+        urls.put("app", "http://localhost:8103");
+        response.put("urls", urls);
         return response;
     }
 
