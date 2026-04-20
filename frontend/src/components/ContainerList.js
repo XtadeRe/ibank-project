@@ -64,7 +64,7 @@ function ContainerList() {
             while (attempts < maxAttempts) {
                 try {
                     response = await axios.get(`${API_URL}/dashboard-data`, {
-                        timeout: 30000
+                        timeout: 45000  // Увеличили timeout для тяжелых запросов
                     });
                     break;
                 } catch (err) {
@@ -123,7 +123,7 @@ function ContainerList() {
 
         const interval = setInterval(() => {
             fetchDashboardData();
-        }, 45000);
+        }, 60000);  // Увеличили интервал до 60s
 
         return () => clearInterval(interval);
     }, [fetchDashboardData]);

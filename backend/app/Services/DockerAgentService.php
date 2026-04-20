@@ -150,50 +150,13 @@ class DockerAgentService
     }
 
     /**
-     * Получить ветки через Git команду
+     * Получить ветки через Git команду - УДАЛЕН для производительности
+     * Используем только GitHub API или статический список
      */
     private function getBranchesFromGit()
     {
-        try {
-            $tempDir = storage_path('app/temp_repo_' . time());
-
-            // Клонируем репозиторий (только для получения веток)
-            $cloneCmd = "git clone --depth 1 https://github.com/XtadeRe/ibank-project.git {$tempDir} 2>&1";
-            exec($cloneCmd, $output, $returnCode);
-
-            if ($returnCode !== 0) {
-                throw new \Exception('Failed to clone repository');
-            }
-
-            // Получаем список веток
-            $branchesCmd = "cd {$tempDir} && git branch -r";
-            exec($branchesCmd, $branchesOutput);
-
-            // Удаляем временную папку
-            exec("rm -rf {$tempDir}");
-
-            // Парсим ветки
-            $branches = [];
-            foreach ($branchesOutput as $line) {
-                $branch = trim(str_replace('origin/', '', $line));
-                if ($branch && !str_contains($branch, 'HEAD') && $branch !== '') {
-                    $branches[] = $branch;
-                }
-            }
-
-            $branches = array_unique($branches);
-
-            if (empty($branches)) {
-                return ['main', 'master', 'develop', 'createStack'];
-            }
-
-            Log::info('Git branches loaded: ' . count($branches));
-            return array_values($branches);
-
-        } catch (\Exception $e) {
-            Log::error('Ошибка получения веток через Git: ' . $e->getMessage());
-            return ['main', 'master', 'develop', 'createStack'];
-        }
+        Log::warning('Git clone fallback disabled for performance - using static branches');
+        return ['main', 'master', 'develop', 'createStack', 'feature/*'];
     }
 
     /**
@@ -201,8 +164,8 @@ class DockerAgentService
      */
     public function getBranchesCached()
     {
-        // Используем кэш для уменьшения количества запросов
-        return \Illuminate\Support\Facades\Cache::remember('github_branches', 3600, function () {
+        // Увеличили кэш до 24h для снижения нагрузки
+        return \Illuminate\Support\Facades\Cache::remember('github_branches', 86400, function () {
             return $this->getBranches();
         });
     }

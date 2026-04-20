@@ -40,9 +40,9 @@ class DashboardController extends Controller
             // Используем $this->dockerAgent напрямую, передав ему URL
             $agentBaseUrl = rtrim(env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001'), '/');
 
-            $stacksWithDetails = Cache::remember($cacheKey, 30, function () use ($stacks, $agentBaseUrl) { // Передаём agentBaseUrl
-                $sandboxes = Sandbox::all(['id', 'name', 'git_branch', 'version', 'status', 'created_at']);
-                $sandboxesMap = $sandboxes->keyBy('name')->toArray(); // Используем коллекцию Laravel для удобства
+$stacksWithDetails = Cache::remember($cacheKey, 60, function () use ($stacks, $agentBaseUrl) { // Увеличили кэш до 60s
+$sandboxes = Sandbox::select(['id', 'name', 'git_branch', 'version', 'status', 'created_at'])->limit(50)->get();
+$sandboxesMap = $sandboxes->keyBy('name')->toArray(); // Limit 50 для скорости
 
                 $containersData = [];
 

@@ -40,8 +40,9 @@ function UptimeChart({ stackId, stackName }) {
         try {
             const response = await axios.get(`${API_URL}/sandboxes/${identifier}/uptime`, {
                 headers: {
-                    'Cache-Control': 'max-age=30'
+                    'Cache-Control': 'max-age=30'  // Вернули cache, но timeout больше
                 },
+                timeout: 20000  // Увеличили до 20s
             });
 
             if (isMountedRef.current) {
@@ -84,7 +85,7 @@ function UptimeChart({ stackId, stackName }) {
 
         fetchUptimeData();
 
-        const interval = setInterval(fetchUptimeData, 60000);
+        const interval = setInterval(fetchUptimeData, 120000);  // Каждые 2 мин вместо 1
 
         const timeInterval = setInterval(() => {
             if (isMountedRef.current) {
