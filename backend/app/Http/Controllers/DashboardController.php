@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Sandbox;
 use App\Services\DockerAgentService; // Убедитесь, что импортировали
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Client\Pool;
 
 class DashboardController extends Controller
 {
@@ -28,58 +30,70 @@ class DashboardController extends Controller
 
             $allStacks = $this->dockerAgent->getStacks();
 
-            // --- ФИЛЬТРАЦИЯ: Исключаем стек сайта ---
             $stacks = $allStacks;
             if (!empty($this->siteStackName)) {
-                $stacks = array_filter($allStacks, function ($stack) {
-                    // Предполагается, что $stack - это массив с ключом 'name'
-                    return $stack['name'] !== $this->siteStackName;
-                });
-                // array_filter может изменить индексы, array_values восстанавливает их
+                $stacks = array_filter($allStacks, fn($stack) => ($stack['name'] ?? '') !== $this->siteStackName);
                 $stacks = array_values($stacks);
             }
-            // ------------------------------
 
-// Кэшируем dashboard data на 30 секунд
-$cacheKey = 'dashboard_data_full';
-$dockerAgent = $this->dockerAgent;
-$stacksWithDetails = Cache::remember($cacheKey, 30, function () use ($dockerAgent, $stacks) {
-    $sandboxes = Sandbox::all(['id', 'name', 'git_branch', 'version', 'status', 'created_at']);
+            $cacheKey = 'dashboard_data_full';
+            // Используем $this->dockerAgent напрямую, передав ему URL
+            $agentBaseUrl = rtrim(env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001'), '/');
 
-    $sandboxesMap = [];
-    foreach ($sandboxes as $sandbox) {
-        $sandboxesMap[$sandbox->name] = $sandbox;
-    }
+            $stacksWithDetails = Cache::remember($cacheKey, 30, function () use ($stacks, $agentBaseUrl) { // Передаём agentBaseUrl
+                $sandboxes = Sandbox::all(['id', 'name', 'git_branch', 'version', 'status', 'created_at']);
+                $sandboxesMap = $sandboxes->keyBy('name')->toArray(); // Используем коллекцию Laravel для удобства
 
-    // Параллельно получаем контейнеры (используем Laravel Http async если доступно, иначе последовательно)
-    $containersData = [];
-    foreach ($stacks as $stack) {
-        $stackName = $stack['name'] ?? null;
-        if ($stackName === null) continue;
-        $containersData[$stackName] = $dockerAgent->getContainersByStack($stackName);
-    }
+                $containersData = [];
 
-    $result = [];
-    foreach ($stacks as $stack) {
-        $stackName = $stack['name'] ?? null;
-        if ($stackName === null) continue;
+                if (!empty($stacks)) {
+                    // --- Параллельные запросы к Docker Agent ---
+                    $stacksToQuery = [];
+                    foreach ($stacks as $stack) {
+                        if (!empty($stack['name'] ?? '')) {
+                            $stacksToQuery[] = $stack;
+                        }
+                    }
+                    $responses = Http::pool(fn (Pool $pool) => array_map(
+                        fn($stack) => $pool->get("{$agentBaseUrl}/api/stacks/" . urlencode($stack['name']) . '/info'),
+                        $stacksToQuery
+                    ));
 
-        $containers = $containersData[$stackName] ?? [];
-        $sandbox = $sandboxesMap[$stackName] ?? null;
+                    // Обрабатываем ответы
+                    foreach ($stacksToQuery as $idx => $stack) {
+                        $response = $responses[$idx] ?? null;
+                        $stackName = $stack['name'];
+                        $containersData[$stackName] = [];
+                        if ($response && $response->successful()) {
+                            $containersData[$stackName] = $response->json()['containers'] ?? [];
+                        }
+                    }
+                    Log::info('Fetched containers for ' . count($stacksToQuery) . ' stacks');
+                    // ------------------------------------------
+                }
 
-        $result[] = [
-            'id' => $sandbox?->id,
-            'name' => $stackName,
-            'git_branch' => $sandbox?->git_branch ?? 'develop',
-            'version' => $sandbox?->version ?? 'v1.0.0',
-            'status' => $sandbox?->status ?? 'unknown',
-            'containers' => $containers,
-            'created_at' => $sandbox?->created_at,
-        ];
-    }
 
-    return $result;
-});
+                $result = [];
+                foreach ($stacks as $stack) {
+                    $stackName = $stack['name'] ?? null;
+                    if ($stackName === null) continue;
+
+                    $containers = $containersData[$stackName] ?? [];
+                    $sandbox = $sandboxesMap[$stackName] ?? null;
+
+                    $result[] = [
+                        'id' => $sandbox['id'] ?? null,
+                        'name' => $stackName,
+                        'git_branch' => $sandbox['git_branch'] ?? 'develop',
+                        'version' => $sandbox['version'] ?? 'v1.0.0',
+                        'status' => $sandbox['status'] ?? 'unknown',
+                        'containers' => $containers,
+                        'created_at' => $sandbox['created_at'] ?? null,
+                    ];
+                }
+
+                return $result;
+            });
 
             $duration = round((microtime(true) - $startTime) * 1000);
             Log::info("Dashboard data loaded in {$duration}ms, filtered out " . (count($allStacks) - count($stacks)) . " stacks.");
@@ -133,3 +147,4 @@ $stacksWithDetails = Cache::remember($cacheKey, 30, function () use ($dockerAgen
         }
     }
 }
+
