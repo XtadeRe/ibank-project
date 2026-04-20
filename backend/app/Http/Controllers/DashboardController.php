@@ -28,7 +28,7 @@ class DashboardController extends Controller
         try {
             $startTime = microtime(true);
 
-            $allStacks = $this->dockerAgent->getStacks();
+$allStacks = Cache::remember('docker_stacks_list', 10, fn() => $this->dockerAgent->getStacks());
 
             $stacks = $allStacks;
             if (!empty($this->siteStackName)) {

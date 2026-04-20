@@ -19,7 +19,7 @@ function History() {
         }
 
         try {
-            const response = await axios.get(`${API_URL}/history?page=${page}&per_page=50`);
+            const response = await axios.get(`${API_URL}/history?page=${page}&per_page=5`);
 
             const { data: newHistory, last_page, current_page } = response.data;
 

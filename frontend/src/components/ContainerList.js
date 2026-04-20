@@ -123,7 +123,7 @@ function ContainerList() {
 
         const interval = setInterval(() => {
             fetchDashboardData();
-        }, 60000);  // Увеличили интервал до 60s
+        }, 60000);  
 
         return () => clearInterval(interval);
     }, [fetchDashboardData]);

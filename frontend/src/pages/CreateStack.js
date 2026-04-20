@@ -34,11 +34,9 @@ function CreateStack() {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        // Обрабатываем изменение для name и stack_type, но не для git_branch
         if (name !== 'git_branch') {
             setForm(prev => ({ ...prev, [name]: value }));
         }
-        // git_branch остаётся 'createStack'
     };
 
     const handleSubmit = async () => {
@@ -50,7 +48,6 @@ function CreateStack() {
             setError('Имя: только латиница, цифры, дефис. 3-30 символов');
             return;
         }
-        // git_branch всегда 'createStack', проверка не нужна
 
         try {
             setSubmitting(true);
@@ -62,12 +59,12 @@ function CreateStack() {
                 name: form.name,
                 timestamp: Date.now(),
                 type: form.stack_type,
-                branch: form.git_branch // Всегда 'createStack'
+                branch: form.git_branch 
             });
             localStorage.setItem('creatingStacks', JSON.stringify(creating));
 
             await axios.post(`${API_URL}/jenkins/deploy`, {
-                branch: form.git_branch, // Всегда 'createStack'
+                branch: form.git_branch,
                 stack_type: form.stack_type,
                 stack_name: form.name,
                 machine_ip: '127.0.0.1'
@@ -77,7 +74,7 @@ function CreateStack() {
 
             setForm({
                 name: '',
-                git_branch: 'createStack', // Сброс к статическому значению
+                git_branch: 'createStack',
                 stack_type: 'full'
             });
 
