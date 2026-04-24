@@ -9,7 +9,6 @@ class SandboxResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        // Получаем информацию из labels контейнеров
         $containerInfo = $this->getContainerInfo();
 
         return [

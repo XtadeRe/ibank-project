@@ -11,17 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Индекс для быстрого поиска sandbox по имени
         Schema::table('sandboxes', function (Blueprint $table) {
             $table->index('name');
         });
 
-        // Композитный индекс для history (часто используется сортировка по created_at)
         Schema::table('history', function (Blueprint $table) {
             $table->index(['sandbox_id', 'created_at']);
         });
 
-        // Индекс для status в sandboxes (фильтрация running)
         Schema::table('sandboxes', function (Blueprint $table) {
             $table->index('status');
         });
