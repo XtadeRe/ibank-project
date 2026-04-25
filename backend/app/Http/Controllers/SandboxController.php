@@ -78,6 +78,9 @@ return SandboxResource::collection($sandboxes);
 
                 DB::commit();
 
+                Cache::forget('dashboard_data_full');
+                Cache::forget('docker_stacks_list');
+
                 return response()->json([
                     'message' => 'Стек успешно создан и запущен',
                     'sandbox' => new SandboxResource($sandbox),
@@ -130,6 +133,9 @@ return SandboxResource::collection($sandboxes);
                     'restart',
                     "Стек {$sandbox->name} успешно перезапущен"
                 );
+
+                Cache::forget('dashboard_data_full');
+                Cache::forget('docker_stacks_list');
 
                 return response()->json([
                     'success' => true,
@@ -190,7 +196,7 @@ return SandboxResource::collection($sandboxes);
     {
         $cacheKey = "uptime_data_{$id}";
         
-        return Cache::remember($cacheKey, 300, function () use ($id) {
+        return Cache::remember($cacheKey, 30, function () use ($id) {
             $sandbox = Sandbox::where('id', $id)->orWhere('name', $id)->first();
 
             if (!$sandbox) {
@@ -214,7 +220,7 @@ return SandboxResource::collection($sandboxes);
             ];
 
             $chartKey = "uptime_chart_{$sandbox->id}_v2";
-            $chartData = Cache::remember($chartKey, 300, function () use ($sandbox) {
+            $chartData = Cache::remember($chartKey, 60, function () use ($sandbox) {
                 return $this->getChartData($sandbox);
             });
 

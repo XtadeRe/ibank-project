@@ -5,6 +5,7 @@ use App\Models\History;
 use App\Models\Sandbox;
 use App\Services\DockerAgentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class DockerAgentController extends Controller
@@ -195,6 +196,9 @@ class DockerAgentController extends Controller
             } else {
                 \Log::info("Попытка удаления стека {$stackName}, но запись в таблице sandboxes не найдена.");
             }
+
+            Cache::forget('dashboard_data_full');
+            Cache::forget('docker_stacks_list');
 
             return response()->json([
                 'success' => true,

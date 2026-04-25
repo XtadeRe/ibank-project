@@ -28,7 +28,7 @@ class DashboardController extends Controller
         try {
             $startTime = microtime(true);
 
-$allStacks = Cache::remember('docker_stacks_list', 10, fn() => $this->dockerAgent->getStacks());
+$allStacks = Cache::remember('docker_stacks_list', 3, fn() => $this->dockerAgent->getStacks());
 
             $stacks = $allStacks;
             if (!empty($this->siteStackName)) {
@@ -40,7 +40,7 @@ $allStacks = Cache::remember('docker_stacks_list', 10, fn() => $this->dockerAgen
             // Используем $this->dockerAgent напрямую, передав ему URL
             $agentBaseUrl = rtrim(env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001'), '/');
 
-$stacksWithDetails = Cache::remember($cacheKey, 60, function () use ($stacks, $agentBaseUrl) { // Увеличили кэш до 60s
+$stacksWithDetails = Cache::remember($cacheKey, 5, function () use ($stacks, $agentBaseUrl) { // Снижена задержка до 5s
 $sandboxes = Sandbox::select(['id', 'name', 'git_branch', 'version', 'status', 'created_at'])->limit(50)->get();
 $sandboxesMap = $sandboxes->keyBy('name')->toArray(); // Limit 50 для скорости
 

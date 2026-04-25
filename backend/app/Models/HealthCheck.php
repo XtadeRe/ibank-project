@@ -49,7 +49,7 @@ class HealthCheck extends Model
     public static function getUptimeStats($sandboxId, $hours = 24)
     {
         $cacheKey = "uptime_stats_{$sandboxId}_{$hours}";
-        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($sandboxId, $hours) {
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 30, function () use ($sandboxId, $hours) {
             $checks = self::where('sandbox_id', $sandboxId)
                 ->where('created_at', '>=', now()->subHours($hours))
                 ->select('id', 'is_available')

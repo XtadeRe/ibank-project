@@ -94,7 +94,7 @@ export function useContainerList() {
 
         const interval = setInterval(() => {
             fetchDashboardData();
-        }, 60000);
+        }, 10000);
 
         return () => clearInterval(interval);
     }, [fetchDashboardData]);
@@ -151,10 +151,16 @@ export function useContainerList() {
             return;
         }
         try {
+            // Optimistic UI update
+            setStacks(prev => prev.map(s =>
+                s.id === stackId ? { ...s, status: 'restarting' } : s
+            ));
             await axios.post(`${API_URL}/sandboxes/${stackId}/restart`);
-            startTransition(() => fetchDashboardData());
+            startTransition(() => fetchDashboardData(true));
         } catch (err) {
             setError('Ошибка перезапуска стека');
+            // Revert optimistic update on error
+            startTransition(() => fetchDashboardData(true));
         }
     }, [API_URL, fetchDashboardData, startTransition]);
 
@@ -164,11 +170,16 @@ export function useContainerList() {
             return;
         }
         try {
-            await axios.post(`${API_URL}/docker/stacks/${deleteDialog.stackName}/delete`);
+            // Optimistic UI update
+            const removedName = deleteDialog.stackName;
+            setStacks(prev => prev.filter(s => s.name !== removedName));
             setDeleteDialog({ open: false, stackId: null, stackName: '' });
-            startTransition(() => fetchDashboardData());
+            await axios.post(`${API_URL}/docker/stacks/${deleteDialog.stackName}/delete`);
+            startTransition(() => fetchDashboardData(true));
         } catch (err) {
             setError('Ошибка удаления стека');
+            // Revert optimistic update on error
+            startTransition(() => fetchDashboardData(true));
         }
     }, [API_URL, deleteDialog.stackName, fetchDashboardData, startTransition]);
 
