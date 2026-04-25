@@ -26,35 +26,9 @@
 
 <script>
 
-    const API_URL = 'http://localhost:8103'
-
-    async function getApiUrl() {
-        try {
-            const res = await fetch(`${API_URL}/api/balance/info`);
-            const data = await res.json();
-            if (data.success && data.urls && data.urls.app) {
-                API_URL = data.urls.app;
-                console.log('API_URL установлен:', API_URL);
-                return true;
-            }
-        } catch (e) {
-            console.log('Стек не готов, повтор через 2с...');
-        }
-        return false;
-    }
-
-    async function waitForApiUrl(maxRetries = 30) {
-        for (let i = 0; i < maxRetries; i++) {
-            if (await getApiUrl()) return true;
-            await new Promise(r => setTimeout(r, 2000));
-        }
-        console.error('Не удалось получить порт API');
-        API_URL = 'http://localhost:8080'; // fallback
-        return true;
-    }
+    const API_URL = ''
 
     async function loadBalance() {
-        if (!API_URL) throw new Error('API_URL не установлен');
         const res = await fetch(`${API_URL}/api/balance`);
         const data = await res.json();
         document.getElementById('balance').innerText = data.balance;
@@ -107,11 +81,9 @@
     }
 
     // Инициализация
-    waitForApiUrl().then(() => {
-        loadBalance();
-        loadTransactions();
-        setInterval(() => { loadBalance(); loadTransactions(); }, 5000);
-    });
+    loadBalance();
+    loadTransactions();
+    setInterval(() => { loadBalance(); loadTransactions(); }, 5000);
 </script>
 </body>
 </html>

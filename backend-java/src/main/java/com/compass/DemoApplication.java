@@ -59,6 +59,10 @@ interface TransactionRepository extends JpaRepository<Transaction, Long> {}
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
 class BankController {
+
+    @Value("${APP_PORT:8080}")
+    private String appPort;
+
     @Autowired
     private TransactionRepository transactionRepository;
     private double balance = 1000.0;
@@ -118,7 +122,7 @@ class BankController {
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         Map<String, String> urls = new HashMap<>();
-        urls.put("app", "http://localhost:8103");
+        urls.put("app", "http://localhost:" + appPort); 
         response.put("urls", urls);
         return response;
     }
