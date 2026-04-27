@@ -94,7 +94,7 @@ export function useContainerList() {
 
         const interval = setInterval(() => {
             fetchDashboardData();
-        }, 10000);
+        }, 30000);
 
         return () => clearInterval(interval);
     }, [fetchDashboardData]);
