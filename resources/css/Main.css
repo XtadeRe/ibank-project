@@ -7,11 +7,11 @@ body {
 }
 
 .main_container {
-    @apply container p-2 mx-auto grid grid-cols-2;
+    @apply container mx-auto grid grid-cols-2 p-2;
 }
 
 .main_container h1 {
-    @apply text-3xl font-bold mb-4;
+    @apply mb-4 text-3xl font-bold;
 }
 
 .text-gray-600 {
@@ -19,16 +19,12 @@ body {
 }
 
 .preview_text {
-    @apply flex items-center flex-col-reverse justify-center gap-5
+    @apply flex flex-col-reverse items-center justify-center gap-5;
 }
 
 .preview_image {
-    @apply w-210.5
+    @apply w-210.5;
 }
-
-
-/* src/css/Main.css */
-/* Основные стили для главной страницы */
 
 /* Hero секция (preview) */
 .preview {
@@ -36,60 +32,60 @@ body {
 }
 
 .preview .main_container {
-    @apply container mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-8;
+    @apply container mx-auto flex flex-col items-center justify-between gap-8 px-4 lg:flex-row;
 }
 
 .preview_text {
-    @apply lg:w-1/2 text-center lg:text-left;
+    @apply text-center lg:w-1/2 lg:text-left;
 }
 
 .preview_text h1 {
-    @apply text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4;
+    @apply mb-4 text-4xl font-bold text-gray-900 md:text-5xl lg:text-6xl;
 }
 
 .preview_text p {
-    @apply text-lg md:text-xl text-gray-600 mb-8;
+    @apply mb-8 text-lg text-gray-600 md:text-xl;
 }
 
 .preview_image {
-    @apply lg:w-1/2 flex justify-center;
+    @apply flex justify-center lg:w-1/2;
 }
 
 .preview_image img {
-    @apply rounded-2xl shadow-2xl max-w-full h-auto max-h-[500px] object-cover;
+    @apply h-auto max-h-[500px] max-w-full rounded-2xl object-cover shadow-2xl;
 }
 
 /* Process секция */
 .process-section {
-    @apply py-16 bg-white;
+    @apply bg-white py-16;
 }
 
 .process-section .container {
-    @apply max-w-7xl mx-auto px-4;
+    @apply mx-auto max-w-7xl px-4;
 }
 
 .process-section h2 {
-    @apply text-3xl md:text-4xl font-bold text-center mb-4;
+    @apply mb-4 text-center text-3xl font-bold md:text-4xl;
 }
 
 .process-section .subtitle {
-    @apply text-xl text-gray-600 text-center mb-12 max-w-2xl mx-auto;
+    @apply mx-auto mb-12 max-w-2xl text-center text-xl text-gray-600;
 }
 
 .steps-grid {
-    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8;
+    @apply grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4;
 }
 
 .step-card {
-    @apply bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-blue-200;
+    @apply rounded-xl border border-gray-100 bg-white p-6 shadow-lg transition-all duration-300 hover:border-blue-200 hover:shadow-xl;
 }
 
 .step-card-header {
-    @apply flex items-center mb-4;
+    @apply mb-4 flex items-center;
 }
 
 .step-number {
-    @apply flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-full text-xl font-bold mr-4;
+    @apply mr-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-xl font-bold text-blue-600;
 }
 
 .step-icon {
@@ -97,15 +93,15 @@ body {
 }
 
 .step-card h3 {
-    @apply text-xl font-bold mb-3 text-gray-800;
+    @apply mb-3 text-xl font-bold text-gray-800;
 }
 
 .step-description {
-    @apply text-gray-700 mb-4;
+    @apply mb-4 text-gray-700;
 }
 
 .step-details {
-    @apply space-y-2 mt-4;
+    @apply mt-4 space-y-2;
 }
 
 .step-detail-item {
@@ -113,74 +109,74 @@ body {
 }
 
 .step-detail-marker {
-    @apply w-1.5 h-1.5 bg-blue-400 rounded-full mr-2 flex-shrink-0;
+    @apply mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-blue-400;
 }
 
 /* Кнопка CTA */
 .process-cta {
-    @apply text-center mt-12;
+    @apply mt-12 text-center;
 }
 
 .cta-button {
-    @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-1;
+    @apply transform rounded-lg bg-blue-600 px-8 py-3 font-semibold text-white shadow-md transition duration-300 hover:-translate-y-1 hover:bg-blue-700 hover:shadow-lg;
 }
 
 /* Help секция */
 #help {
-    @apply py-16 bg-blue-50 pb-30;
+    @apply bg-blue-50 py-16 pb-30;
 }
 
 .help_container {
     @apply container mx-auto px-4;
 }
 .search_block {
-    @apply flex mt-10 gap-2
+    @apply mt-10 flex gap-2;
 }
 .search_block button {
-    @apply border-2 text-blue-600 transition-all duration-300 cursor-pointer hover:text-white hover:bg-blue-600 rounded-lg w-10 h-10 border-blue-600
+    @apply h-10 w-10 cursor-pointer rounded-lg border-2 border-blue-600 text-blue-600 transition-all duration-300 hover:bg-blue-600 hover:text-white;
 }
 
 .help_select1 {
-    @apply border-blue-600 w-50 border-2 rounded-lg focus:bg-blue-100 transition duration-300 outline-0
+    @apply w-50 rounded-lg border-2 border-blue-600 outline-0 transition duration-300 focus:bg-blue-100;
 }
 
 .help_select2 {
-    @apply border-blue-600 w-40 border-2 rounded-lg focus:bg-blue-100 transition duration-300 outline-0
+    @apply w-40 rounded-lg border-2 border-blue-600 outline-0 transition duration-300 focus:bg-blue-100;
 }
 
 /* Popular Schools Section */
 .popular-section {
-    @apply py-16 bg-gradient-to-b from-white to-blue-50 border-t-2 border-dotted border-blue-50;
+    @apply border-t-2 border-dotted border-blue-50 bg-gradient-to-b from-white to-blue-50 py-16;
 }
 
 .popular-container {
-    @apply container mx-auto px-4 max-w-7xl;
+    @apply container mx-auto max-w-7xl px-4;
 }
 
 .popular-header {
-    @apply text-center mb-12;
+    @apply mb-12 text-center;
 }
 
 .popular-header h2 {
-    @apply text-3xl md:text-4xl font-bold text-gray-900 mb-4;
+    @apply mb-4 text-3xl font-bold text-gray-900 md:text-4xl;
 }
 
 .popular-header .subtitle {
-    @apply text-lg text-gray-600 max-w-2xl mx-auto;
+    @apply mx-auto max-w-2xl text-lg text-gray-600;
 }
 
 .popular-badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 mb-2;
+    @apply mb-2 inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800;
 }
 
 /* Grid for cards */
 .popular-grid {
-    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-10;
+    @apply mt-10 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3;
 }
 
 /* Individual school card */
 .popular-card {
-    @apply bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-blue-200 hover:-translate-y-2;
+    @apply overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg transition-all duration-300 hover:-translate-y-2 hover:border-blue-200 hover:shadow-2xl;
 }
 
 .popular-card-image {
@@ -188,7 +184,7 @@ body {
 }
 
 .popular-card-image img {
-    @apply w-full h-full object-cover transition-transform duration-500 hover:scale-110;
+    @apply h-full w-full object-cover transition-transform duration-500 hover:scale-110;
 }
 
 .popular-card-content {
@@ -196,23 +192,23 @@ body {
 }
 
 .popular-card-header {
-    @apply flex justify-between items-start mb-4;
+    @apply mb-4 flex items-start justify-between;
 }
 
 .popular-card-title {
-    @apply text-xl font-bold text-gray-900 mb-2;
+    @apply mb-2 text-xl font-bold text-gray-900;
 }
 
 .popular-card-location {
-    @apply flex items-center text-gray-600 mb-3;
+    @apply mb-3 flex items-center text-gray-600;
 }
 
 .location-icon {
-    @apply w-4 h-4 mr-2 text-blue-500;
+    @apply mr-2 h-4 w-4 text-blue-500;
 }
 
 .popular-card-stats {
-    @apply flex items-center justify-between mt-4 pt-4 border-t border-gray-100;
+    @apply mt-4 flex items-center justify-between border-t border-gray-100 pt-4;
 }
 
 .popular-views {
@@ -220,15 +216,15 @@ body {
 }
 
 .views-icon {
-    @apply w-4 h-4 mr-2 text-red-500;
+    @apply mr-2 h-4 w-4 text-red-500;
 }
 
 .popular-rating {
-    @apply flex items-center bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium;
+    @apply flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700;
 }
 
 .star-icon {
-    @apply w-4 h-4 mr-1 text-yellow-500;
+    @apply mr-1 h-4 w-4 text-yellow-500;
 }
 
 .popular-price {
@@ -236,33 +232,33 @@ body {
 }
 
 .popular-tags {
-    @apply flex flex-wrap gap-2 mt-3;
+    @apply mt-3 flex flex-wrap gap-2;
 }
 
 .tag {
-    @apply px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium;
+    @apply rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700;
 }
 
 /* Status indicators */
 .popular-featured {
-    @apply absolute top-4 left-4 bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md;
+    @apply absolute top-4 left-4 rounded-full bg-gradient-to-r from-red-500 to-pink-500 px-3 py-1 text-xs font-bold text-white shadow-md;
 }
 
 /* Individual school card */
 .popular-card {
-    @apply bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-blue-200 hover:-translate-y-2 relative flex flex-col h-full;
+    @apply relative flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg transition-all duration-300 hover:-translate-y-2 hover:border-blue-200 hover:shadow-2xl;
 }
 
 .popular-card-image {
-    @apply h-48 w-full overflow-hidden relative;
+    @apply relative h-48 w-full overflow-hidden;
 }
 
 .popular-card-image img {
-    @apply w-full h-full object-cover transition-transform duration-500 hover:scale-110;
+    @apply h-full w-full object-cover transition-transform duration-500 hover:scale-110;
 }
 
 .popular-card-content {
-    @apply p-6 flex flex-col flex-grow;
+    @apply flex flex-grow flex-col p-6;
 }
 
 .popular-card-header {
@@ -270,55 +266,55 @@ body {
 }
 
 .popular-card-title {
-    @apply text-xl font-bold text-gray-900 mb-2 line-clamp-2;
+    @apply mb-2 line-clamp-2 text-xl font-bold text-gray-900;
 }
 
 .popular-card-location {
-    @apply flex items-center text-gray-600 mb-3;
+    @apply mb-3 flex items-center text-gray-600;
 }
 
 .location-icon {
-    @apply w-4 h-4 mr-2 text-blue-500;
+    @apply mr-2 h-4 w-4 text-blue-500;
 }
 
 .popular-card-description {
-    @apply text-gray-700 mb-4 line-clamp-3 flex-grow;
+    @apply mb-4 line-clamp-3 flex-grow text-gray-700;
 }
 
 .popular-card-tags {
-    @apply flex flex-wrap gap-2 mb-4;
+    @apply mb-4 flex flex-wrap gap-2;
 }
 
 .popular-tag {
-    @apply px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium hover:bg-blue-100 transition-colors;
+    @apply rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100;
 }
 
 .popular-card-footer {
-    @apply mt-auto pt-4 border-t border-gray-100;
+    @apply mt-auto border-t border-gray-100 pt-4;
 }
 
 .popular-card-stats {
-    @apply flex justify-between items-center mb-3;
+    @apply mb-3 flex items-center justify-between;
 }
 
 .popular-rating {
-    @apply flex items-center bg-yellow-50 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium;
+    @apply flex items-center rounded-full bg-yellow-50 px-3 py-1 text-sm font-medium text-yellow-700;
 }
 
 .star-icon {
-    @apply w-4 h-4 mr-1 text-yellow-500;
+    @apply mr-1 h-4 w-4 text-yellow-500;
 }
 
 .popular-views {
-    @apply flex items-center text-gray-600 text-sm;
+    @apply flex items-center text-sm text-gray-600;
 }
 
 .views-icon {
-    @apply w-4 h-4 mr-1.5 text-red-500;
+    @apply mr-1.5 h-4 w-4 text-red-500;
 }
 
 .popular-price {
-    @apply text-lg font-bold text-blue-700 mb-2;
+    @apply mb-2 text-lg font-bold text-blue-700;
 }
 
 .popular-period {
@@ -326,12 +322,12 @@ body {
 }
 
 .popular-cta {
-    @apply w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 transform hover:-translate-y-0.5 mt-4 text-center;
+    @apply mt-4 w-full transform rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 py-3 text-center font-medium text-white transition-all duration-300 hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700;
 }
 
 /* Featured badge */
 .popular-featured {
-    @apply absolute top-4 left-4 bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md z-10;
+    @apply absolute top-4 left-4 z-10 rounded-full bg-gradient-to-r from-red-500 to-pink-500 px-3 py-1 text-xs font-bold text-white shadow-md;
 }
 
 /* Hover effects */
@@ -341,7 +337,7 @@ body {
 
 /* Status indicator */
 .popular-status {
-    @apply absolute top-4 right-4 bg-green-500 text-white px-2 py-1 rounded text-xs font-bold;
+    @apply absolute top-4 right-4 rounded bg-green-500 px-2 py-1 text-xs font-bold text-white;
 }
 
 /* Animation for cards appearing */
@@ -360,12 +356,24 @@ body {
     animation: cardAppear 0.5s ease-out forwards;
 }
 
-.popular-card:nth-child(1) { animation-delay: 0.1s; }
-.popular-card:nth-child(2) { animation-delay: 0.2s; }
-.popular-card:nth-child(3) { animation-delay: 0.3s; }
-.popular-card:nth-child(4) { animation-delay: 0.4s; }
-.popular-card:nth-child(5) { animation-delay: 0.5s; }
-.popular-card:nth-child(6) { animation-delay: 0.6s; }
+.popular-card:nth-child(1) {
+    animation-delay: 0.1s;
+}
+.popular-card:nth-child(2) {
+    animation-delay: 0.2s;
+}
+.popular-card:nth-child(3) {
+    animation-delay: 0.3s;
+}
+.popular-card:nth-child(4) {
+    animation-delay: 0.4s;
+}
+.popular-card:nth-child(5) {
+    animation-delay: 0.5s;
+}
+.popular-card:nth-child(6) {
+    animation-delay: 0.6s;
+}
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
@@ -374,7 +382,7 @@ body {
     }
 
     .popular-card {
-        @apply max-w-md mx-auto;
+        @apply mx-auto max-w-md;
     }
 
     .popular-card-title {
@@ -395,7 +403,7 @@ body {
     }
 
     .popular-card {
-        @apply max-w-md mx-auto;
+        @apply mx-auto max-w-md;
     }
 }
 
@@ -415,9 +423,15 @@ body {
     animation: cardAppear 0.5s ease-out forwards;
 }
 
-.popular-card:nth-child(1) { animation-delay: 0.1s; }
-.popular-card:nth-child(2) { animation-delay: 0.2s; }
-.popular-card:nth-child(3) { animation-delay: 0.3s; }
+.popular-card:nth-child(1) {
+    animation-delay: 0.1s;
+}
+.popular-card:nth-child(2) {
+    animation-delay: 0.2s;
+}
+.popular-card:nth-child(3) {
+    animation-delay: 0.3s;
+}
 
 @media (max-width: 768px) {
     .preview_text h1 {
@@ -448,4 +462,3 @@ body {
 .fade-in-up {
     animation: fadeInUp 0.6s ease-out forwards;
 }
-

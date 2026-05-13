@@ -17,6 +17,14 @@ class InstitutionController extends Controller
         ]);
     }
 
+    public function main() {
+        $institutions = Institution::orderBy('views', 'desc')->take(3)->get();
+
+        return Inertia::render('Main', [
+            'institutions' => $institutions
+        ]);
+    }
+
     public function showFromRules() {
         return Inertia::render('Immigration', [
             'countries' => Institution::distinct()->pluck('country')
@@ -25,6 +33,8 @@ class InstitutionController extends Controller
 
     public function show($id) {
         $institution = Institution::findOrFail($id);
+
+
         return Inertia::render('InstitutionPage', [
             'institution' => $institution,
             'modalInitialData' => [

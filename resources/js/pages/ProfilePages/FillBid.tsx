@@ -1,7 +1,7 @@
 import DefaultLayout from '@/layouts/DefaultLayouts';
 import { PageProps } from '@inertiajs/core';
 import { router } from '@inertiajs/react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import '../../../css/FillBid.css';
 
@@ -33,6 +33,14 @@ interface Institution {
     views: number;
 }
 
+interface FileInfo {
+    name: string;
+    path: string;
+    url: string;
+    size: number;
+    mime: string;
+}
+
 interface Bid {
     id: number;
     user_id: number;
@@ -47,14 +55,6 @@ interface Bid {
     institution?: Institution;
 }
 
-interface FileInfo {
-    name: string;
-    path: string;
-    url: string;
-    size: number;
-    mime: string;
-}
-
 interface Props extends PageProps {
     user: User;
     bid: Bid;
@@ -65,9 +65,15 @@ interface UploadedFile extends File {
     preview?: string;
 }
 
-const FillBid = ({ bid }: Props) => {
+const FillBid = ({ bid: initialBid }: Props) => {
+    const [bid, setBid] = useState<Bid>(initialBid);
     const [files, setFiles] = useState<UploadedFile[]>([]);
     const [uploading, setUploading] = useState(false);
+    const [deleting, setDeleting] = useState<string | null>(null);
+
+    useEffect(() => {
+        setBid(initialBid);
+    }, [initialBid]);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         const newFiles = acceptedFiles.map((file) => {
@@ -105,18 +111,31 @@ const FillBid = ({ bid }: Props) => {
         });
     };
 
+    const downloadFile = (bidId: number, index: number) => {
+        const url = `/bids/${bidId}/download/${index + 1}`;
+        window.location.href = url;
+    };
+
     const deleteServerFile = (filePath: string) => {
-        if (confirm('Вы уверены, что хотите удалить этот файл?')) {
-            router.delete(`/bids/${bid.id}/delete-file`, {
-                data: { file_path: filePath },
-                onSuccess: () => {
-                    alert('Файл успешно удален');
-                },
-                onError: () => {
-                    alert('Ошибка при удалении файла');
-                },
-            });
-        }
+        setDeleting(filePath);
+
+        router.delete(`/bids/${bid.id}/delete-file`, {
+            data: { file_path: filePath },
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: (page) => {
+                if (page.props.bid) {
+                    setBid(page.props.bid as Bid);
+                }
+                router.reload({ only: ['bid'] });
+            },
+            onError: (errors) => {
+                console.error('Ошибка при удалении:', errors);
+            },
+            onFinish: () => {
+                setDeleting(null);
+            },
+        });
     };
 
     const formatFileSize = (bytes: number): string => {
@@ -129,21 +148,23 @@ const FillBid = ({ bid }: Props) => {
         e.preventDefault();
 
         if (files.length === 0) {
-            alert('Пожалуйста, выберите файлы для загрузки');
             return;
         }
 
         setUploading(true);
 
         const formData = new FormData();
-
         files.forEach((file) => {
             formData.append('files[]', file);
         });
 
         router.post(`/bids/${bid.id}/upload-files`, formData, {
-            onSuccess: () => {
-                alert('Файлы успешно загружены!');
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: (page) => {
+                if (page.props.bid) {
+                    setBid(page.props.bid as Bid);
+                }
                 files.forEach((file) => {
                     if (file.preview) {
                         URL.revokeObjectURL(file.preview);
@@ -153,7 +174,6 @@ const FillBid = ({ bid }: Props) => {
             },
             onError: (errors) => {
                 console.error('Ошибка загрузки:', errors);
-                alert('Произошла ошибка при загрузке файлов');
             },
             onFinish: () => {
                 setUploading(false);
@@ -164,17 +184,18 @@ const FillBid = ({ bid }: Props) => {
     return (
         <DefaultLayout>
             <div className="FillBid-container">
-                <div className="FillBid-content">
+                <div className="FillBid-content mt-20">
                     <h1 className="mb-6 text-2xl font-bold">Добавление документов</h1>
 
                     <form onSubmit={handleSubmit} className="bid-info-form mx-auto max-w-2xl">
-                        {/* Dropzone для загрузки файлов */}
                         <div className="user-documents mb-6">
                             <label className="mb-2 block text-sm font-bold text-gray-700">Приложите сюда свои документы</label>
 
                             <div
                                 {...getRootProps()}
-                                className={`dropzone cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
+                                className={`dropzone cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
+                                    isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
+                                }`}
                             >
                                 <input {...getInputProps()} />
                                 {isDragActive ? (
@@ -182,24 +203,23 @@ const FillBid = ({ bid }: Props) => {
                                 ) : (
                                     <div>
                                         <p className="mb-2 text-gray-600">Перетащите файлы сюда или кликните для выбора</p>
-                                        <p className="text-sm text-gray-500">Поддерживаются: изображения, PDF, DOC, DOCX</p>
+                                        <p className="text-sm text-gray-500">Поддерживаются: изображения, PDF, DOC, DOCX (макс. 30MB)</p>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Список выбранных файлов для загрузки */}
                             {files.length > 0 && (
                                 <div className="mt-4">
                                     <h4 className="mb-2 font-medium">Новые файлы для загрузки ({files.length}):</h4>
                                     <div className="space-y-2">
-                                        {files.map((file) => (
+                                        {files.map((file, index) => (
                                             <div key={file.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-2">
                                                 <div className="flex items-center space-x-3">
                                                     {file.preview ? (
                                                         <img src={file.preview} alt={file.name} className="h-10 w-10 rounded object-cover" />
                                                     ) : (
                                                         <div className="flex h-10 w-10 items-center justify-center rounded bg-gray-200">
-                                                            <span className="text-lg">📄</span>
+                                                            <span className="text-lg">{index + 1}</span>
                                                         </div>
                                                     )}
                                                     <div>
@@ -224,7 +244,6 @@ const FillBid = ({ bid }: Props) => {
                             )}
                         </div>
 
-                        {/* Информация об учебном заведении */}
                         {bid.institution && (
                             <div className="mb-6 w-full rounded-lg bg-gray-100 p-4">
                                 <h3 className="mb-2 text-lg font-bold">Информация об учебном заведении</h3>
@@ -264,30 +283,30 @@ const FillBid = ({ bid }: Props) => {
                     {bid.files && Array.isArray(bid.files) && bid.files.length > 0 && (
                         <div className="mt-8">
                             <h3 className="mb-4 text-lg font-bold">Загруженные документы:</h3>
-                            <div className="space-y-2">
+                            <p className="text-green-500">Мы получили ваши файлы, пожалуйста дождитесь проверки!</p>
+                            <div className="mt-5 space-y-2">
                                 {bid.files.map((file: FileInfo, index: number) => (
-                                    <div key={index} className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
+                                    <div key={index} className="flex items-center justify-between rounded-lg border border-gray-300 bg-gray-50 p-3">
                                         <div className="flex items-center space-x-3">
-                                            <span className="text-lg">📄</span>
+                                            <span className="rounded-3xl border-2 border-blue-500 pr-2.5 pl-2.5 text-lg">{index + 1}</span>
                                             <div>
                                                 <p className="text-sm font-medium">{file.name}</p>
                                                 <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
-                                            <a
-                                                href={file.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="rounded border border-blue-500 px-3 py-1 text-sm text-blue-500 hover:text-blue-700"
+                                            <button
+                                                className="cursor-pointer rounded border border-blue-500 px-3 py-1 text-sm text-blue-500 transition hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                onClick={() => downloadFile(bid.id, index)}
                                             >
                                                 Скачать
-                                            </a>
+                                            </button>
                                             <button
                                                 onClick={() => deleteServerFile(file.path)}
-                                                className="rounded border border-red-500 px-3 py-1 text-sm text-red-500 hover:text-red-700"
+                                                disabled={deleting === file.path}
+                                                className="cursor-pointer rounded border border-red-500 px-3 py-1 text-sm text-red-500 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
-                                                Удалить
+                                                {deleting === file.path ? 'Удаление...' : 'Удалить'}
                                             </button>
                                         </div>
                                     </div>

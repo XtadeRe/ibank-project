@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('tg_username');
             $table->string('buy_method');
             $table->string('status')->default('pending');
+            $table->string('institution_status')->nullable();
+            $table->boolean('instruction')->default(false);
             $table->timestamps();
         });
     }

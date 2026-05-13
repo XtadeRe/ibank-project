@@ -5,7 +5,8 @@
     "scripts": {
         "build": "vite build",
         "build:ssr": "vite build && vite build --ssr",
-        "dev": "vite",
+        "dev": "vite --host 0.0.0.0",
+        "preview": "vite preview --host 0.0.0.0",
         "format": "prettier --write resources/",
         "format:check": "prettier --check resources/",
         "lint": "eslint . --fix",
@@ -42,6 +43,7 @@
         "react-dropzone": "^15.0.0",
         "react-icons": "^5.5.0",
         "react-imask": "^7.6.1",
+        "react-router-dom": "^7.15.0",
         "tailwind-merge": "^3.0.1",
         "tailwindcss": "^4.1.18",
         "typescript": "^5.7.2",

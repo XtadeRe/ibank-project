@@ -16,6 +16,8 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import '../../../css/MyBids.css';
 
+import StatusBar from '@/components/StatusBar';
+
 interface Bid {
     id: number;
     user_id: number;
@@ -26,6 +28,8 @@ interface Bid {
     buy_method: string;
     created_at: string;
     status?: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+    institution_status: 'SENT_TO_UNIVERSITY' | 'OFFER' | 'VISA_ISSUED' | 'REJECTED_BY_UNIVERSITY';
+    instruction: boolean;
     institution?: Institution;
 }
 
@@ -76,8 +80,27 @@ const MyBids = ({ bids }: Props) => {
                 return 'bg-blue-100 text-blue-800 border-blue-300';
             case 'cancelled':
                 return 'bg-gray-100 text-gray-800 border-gray-300';
+            case 'accepted':
+                return 'bg-green-100 text-green-800';
+            case 'denied':
+                return 'bg-red-100 text-red-800';
             default:
                 return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        }
+    };
+
+    const getStatusProgress = (status: string = 'SENT_TO_UNIVERSITY') => {
+        switch (status) {
+            case 'SENT_TO_UNIVERSITY':
+                return 25;
+            case 'OFFER':
+                return 50;
+            case 'VISA_ISSUED':
+                return 100;
+            case 'REJECTED_BY_UNIVERSITY':
+                return 0;
+            default:
+                return 25;
         }
     };
 
@@ -93,6 +116,10 @@ const MyBids = ({ bids }: Props) => {
                 return 'Завершена';
             case 'cancelled':
                 return 'Отменена';
+            case 'accepted':
+                return 'Документы в порядке';
+            case 'denied':
+                return 'Документы не прошли';
             default:
                 return 'На рассмотрении';
         }
@@ -109,16 +136,16 @@ const MyBids = ({ bids }: Props) => {
                 return <CheckCircleIcon className={`${iconClass} text-blue-600`} />;
             case 'cancelled':
                 return <XCircleIcon className={`${iconClass} text-gray-600`} />;
+            case 'accepted':
+                return <CheckCircleIcon className={`${iconClass} text-green-600`} />;
+            case 'denied':
+                return <XCircleIcon className={`${iconClass} text-red-600`} />;
             default:
                 return <ClockIcon className={`${iconClass} text-yellow-600`} />;
         }
     };
 
     const handleCancel = (bidId: number) => {
-        if (!confirm('Вы уверены, что хотите отменить эту заявку?')) {
-            return;
-        }
-
         setProcessing(bidId);
 
         router.put(
@@ -138,6 +165,12 @@ const MyBids = ({ bids }: Props) => {
                 preserveScroll: true,
             },
         );
+    };
+
+    const confirmArrival = (bidId: number) => {
+        router.put(`/profile/bids/${bidId}`, {
+            status: 'completed',
+        });
     };
 
     useEffect(() => {
@@ -212,7 +245,6 @@ const MyBids = ({ bids }: Props) => {
                                                 {getStatusText(bid.status)}
                                             </span>
                                         </div>
-
                                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                             <div className="bid-card-section">
                                                 <h4 className="bid-card-section-title">
@@ -270,6 +302,43 @@ const MyBids = ({ bids }: Props) => {
                                                 </div>
                                             </div>
                                         </div>
+                                        {bid.status !== 'completed' ? (
+                                            <>
+                                                {bid.institution_status ? (
+                                                    <div className="mt-6 border-t border-gray-100 pt-6">
+                                                        <div className="bid-card-status-section">
+                                                            <span className="bid-card-status-label">Статус вашего поступления</span>
+                                                            <StatusBar value={getStatusProgress(bid.institution_status)} max={100} dotCount={5} />
+                                                            <p className="bid-card-status-text">
+                                                                {bid.institution_status === 'SENT_TO_UNIVERSITY'
+                                                                    ? 'Ожидаем ответ от университета'
+                                                                    : bid.institution_status === 'OFFER'
+                                                                      ? 'Вы приняты в университет! Начните оформление визы!'
+                                                                      : bid.institution_status === 'VISA_ISSUED'
+                                                                        ? 'Виза оформлена! Приятного полёта'
+                                                                        : 'Ожидаем ответ от университета'}
+                                                            </p>
+                                                        </div>
+                                                        {bid.instruction == true ? (
+                                                            <div className="bid-card-status-section">
+                                                                <span className="bid-card-status-label mt-5">
+                                                                    Воспользуйтесь следующей инструкцией
+                                                                </span>
+                                                                <div className="mt-3 w-[100%]">
+                                                                    <a
+                                                                        href="/instruction.pdf"
+                                                                        target="_blank"
+                                                                        className="rounded-xl border-2 border-blue-500 bg-blue-100 px-3 py-2 text-blue-600 duration-300 hover:bg-blue-500 hover:text-blue-50"
+                                                                    >
+                                                                        Скачать инструкцию по перелёту
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
+                                                ) : null}
+                                            </>
+                                        ) : null}
 
                                         <div className="mt-6 border-t border-gray-100 pt-6">
                                             <div className="flex items-center justify-between">
@@ -282,7 +351,7 @@ const MyBids = ({ bids }: Props) => {
                                             </div>
                                         </div>
                                     </div>
-                                    {bid.status !== 'cancelled' && (
+                                    {bid.status !== 'cancelled' && bid.status !== 'completed' && (
                                         <div className="bid-card-actions">
                                             {bid.status === 'pending' ? (
                                                 <div className="bid-card-action-primary cursor-not-allowed opacity-50">
@@ -297,6 +366,12 @@ const MyBids = ({ bids }: Props) => {
                                             ) : (
                                                 <></>
                                             )}
+                                            {bid?.status && bid?.institution_status !== 'completed' && (
+                                                <button className="confirm-arrival" onClick={() => confirmArrival(bid.id)}>
+                                                    Подтвердить прибытие
+                                                </button>
+                                            )}
+
                                             <button
                                                 onClick={() => handleCancel(bid.id)}
                                                 disabled={processing === bid.id}
@@ -326,12 +401,12 @@ const MyBids = ({ bids }: Props) => {
                                                         <TrashIcon className="mr-2 h-4 w-4" />
                                                         Удалить
                                                     </>
-                                                ) : (
+                                                ) : bid.status !== 'completed' ? (
                                                     <>
                                                         <TrashIcon className="mr-2 h-4 w-4" />
                                                         Отменить заявку
                                                     </>
-                                                )}
+                                                ) : null}
                                             </button>
                                         </div>
                                     )}

@@ -5,31 +5,31 @@
 }
 
 .catalog-title {
-    @apply text-3xl font-bold text-gray-900 mb-2;
+    @apply mb-2 text-3xl font-bold text-gray-900;
 }
 
 .catalog-subtitle {
-    @apply text-gray-600 mb-6;
+    @apply mb-6 text-gray-600;
 }
 
 .catalog-filters {
-    @apply flex flex-wrap gap-4 mb-6;
+    @apply mb-6 flex flex-wrap gap-4;
 }
 
 .filter-select {
-    @apply border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500;
+    @apply rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none;
 }
 
 .search-button {
-    @apply bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition;
+    @apply rounded-lg bg-blue-600 px-6 py-2 text-white transition hover:bg-blue-700;
 }
 
 .catalog-grid {
-    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6;
+    @apply grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
 }
 
 .institution-card {
-    @apply bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 border border-gray-100;
+    @apply overflow-hidden rounded-xl border border-gray-100 bg-white shadow-md transition-shadow duration-300 hover:shadow-xl;
 }
 
 .card-image-container {
@@ -37,31 +37,31 @@
 }
 
 .card-image {
-    @apply w-full h-full object-cover hover:scale-105 transition-transform duration-300;
+    @apply h-full w-full object-cover transition-transform duration-300 hover:scale-105;
 }
 
 .featured-badge {
-    @apply absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold;
+    @apply absolute top-3 left-3 rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white;
 }
 
 .rating-badge {
-    @apply absolute top-3 right-3 bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-bold;
+    @apply absolute top-3 right-3 rounded-lg bg-blue-600 px-3 py-1 text-sm font-bold text-white;
 }
 
 .card-content {
-    @apply p-4 min-h-1;
+    @apply min-h-1 p-4;
 }
 
 .card-title {
-    @apply text-lg font-bold text-gray-900 mb-1;
+    @apply mb-1 text-lg font-bold text-gray-900;
 }
 
 .location-container {
-    @apply flex items-center text-gray-600 mb-3;
+    @apply mb-3 flex items-center text-gray-600;
 }
 
 .location-icon {
-    @apply w-4 h-4 mr-1;
+    @apply mr-1 h-4 w-4;
 }
 
 .location-text {
@@ -73,31 +73,31 @@
 }
 
 .type-badge {
-    @apply inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-2 mb-1;
+    @apply mr-2 mb-1 inline-block rounded bg-blue-100 px-2 py-1 text-xs text-blue-800;
 }
 
 .program-badge {
-    @apply inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded mr-2 mb-1;
+    @apply mr-2 mb-1 inline-block rounded bg-gray-100 px-2 py-1 text-xs text-gray-800;
 }
 
 .more-programs {
-    @apply inline-block text-gray-500 text-xs;
+    @apply inline-block text-xs text-gray-500;
 }
 
 .card-actions {
-    @apply flex justify-between items-center;
+    @apply flex items-center justify-between;
 }
 
 .details-button {
-    @apply text-blue-600 hover:text-blue-800 font-medium text-sm;
+    @apply text-sm font-medium text-blue-600 hover:text-blue-800;
 }
 
 .apply-button {
-    @apply bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition;
+    @apply rounded-lg bg-blue-600 px-2 py-2 text-white transition hover:bg-blue-700;
 }
 
 .pagination-container {
-    @apply flex justify-center mt-12;
+    @apply mt-12 flex justify-center;
 }
 
 .pagination-nav {
@@ -105,15 +105,15 @@
 }
 
 .pagination-button {
-    @apply px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50;
+    @apply rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-50;
 }
 
 .pagination-button-active {
-    @apply px-4 py-2 bg-blue-600 text-white rounded-lg;
+    @apply rounded-lg bg-blue-600 px-4 py-2 text-white;
 }
 
 .pagination-number {
-    @apply px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50;
+    @apply rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50;
 }
 
 .pagination-ellipsis {

@@ -20,9 +20,9 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleC
     ->name('login.google.callback');
 
 Route::get('/catalog', [InstitutionController::class, 'index'])->name('catalog');
-Route::get('/catalog/{id}', [InstitutionController::class, 'show'])->name('institutionPage');
+Route::get('/catalog/{id}', [InstitutionController::class, 'show'])->name('institutionPage')->middleware('track.views');;
 Route::get('/immigration', [InstitutionController::class, 'showFromRules'])->name('immigration');
-Route::get('/', fn () => inertia('Main'))->name('home');
+Route::get('/', [InstitutionController::class, 'main'])->name('home');
 
 Route::post('/register', [AuthController::class, 'store'])->name('register.store');
 Route::post('/login', [AuthController::class, 'login'])->name('login.store');
@@ -36,10 +36,17 @@ Route::put('/profile/bids/{id}', [UserController::class, 'updateBidStatus'])->na
 Route::patch('/profile/phone', [UserController::class, 'updatePhone'])->name('profile.phone');
 Route::get('/profile/bids/fillBid/{id}', [BidDataController::class, 'show'])->name('bid.fill');
 
+
+Route::get('/bids/{bidId}/download/{fileIndex}', [BidDataController::class, 'downloadFile'])->name('bid.download');
 Route::post('/bids/{bid}/upload-files', [BidDataController::class, 'uploadFiles'])->name('bids.upload-files');
 Route::delete('/bids/{id}/delete-file', [BidDataController::class, 'deleteFile'])->name('bids.destroy');
+
 
 Route::get('/profile/manager_menu', [ManagerController::class, 'index'])->name('manager.menu');
 Route::get('/profile/manager', [ManagerController::class, 'profile'])->name('manager.profile');
 Route::delete('/profile/manager_menu/{id}/delete', [ManagerController::class, 'delete'])->name('manager.bid.delete');
 Route::patch('/profile/manager_menu/{id}/status', [ManagerController::class, 'update'])->name('manager.bid.update');
+Route::patch('/profile/manager_menu/{id}/institution/status', [ManagerController::class, 'updateInstitutionStatus'])->name('manager.bid.institution.update');
+Route::get('/profile/manager_menu/{id}/details', [ManagerController::class, 'show'])->name('manager.bid.show');
+Route::get('/profile/manager_menu/{id}/download/{fileIndex}', [ManagerController::class, 'downloadFile'])->name('manager.file.download');
+Route::get('/profile/manager_menu/{id}/instruction', [ManagerController::class, 'sentInstruction'])->name('manager.instruction.sent');

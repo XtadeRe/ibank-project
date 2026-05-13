@@ -1,12 +1,13 @@
-import React from 'react';
+import { processSectionText, steps } from '@/data/steps';
+import { ArrowRightIcon, EyeIcon, StarIcon } from '@heroicons/react/20/solid';
+import { usePage } from '@inertiajs/react';
+import '../../css/Main.css';
+import mainImage from '../../images/main.webp';
 import DefaultLayout from '../layouts/DefaultLayouts';
-import mainImage from "../../images/main.webp"
-import { steps, processSectionText } from '@/data/steps';
-import {schools} from '@/data/schools';
-import "../../css/Main.css"
-import {ArrowRightIcon, StarIcon, EyeIcon} from '@heroicons/react/20/solid';
 
 const Main = () => {
+    const { institutions } = usePage().props;
+
     return (
         <DefaultLayout>
             <section className="preview" id="preview">
@@ -33,7 +34,6 @@ const Main = () => {
                             <div key={step.id} className="step-card fade-in-up">
                                 <div className="step-card-header">
                                     <div className="step-number">{step.number}</div>
-                                    <div className="step-icon">{step.icon}</div>
                                 </div>
                                 <h3>{step.title}</h3>
                                 <p className="step-description">{step.description}</p>
@@ -58,56 +58,49 @@ const Main = () => {
             <section className="popular-section">
                 <div className="popular-container">
                     <div className="popular-header">
-                        <span className="popular-badge">🔥 Топ выбора</span>
+                        <span className="popular-badge">Топ выбора</span>
                         <h2>Часто просматриваемые</h2>
-                        <p className="subtitle">Здесь собраны популярные училища на нашем сайте! Эти школы выбирают большинство наших пользователей.</p>
                     </div>
 
                     <div className="popular-grid" id="popular-schools-container">
-                        {schools.map((school) => (
-                            <div key={school.id} className="popular-card">
-                                {school.featured && <span className="popular-featured">🔥 Популярно</span>}
+                        {institutions.map((institution) => (
+                            <div key={institution.id} className="popular-card">
+                                {institution.featured && <span className="popular-featured">Популярно</span>}
 
                                 <div className="popular-card-image">
-                                    <img src={school.image} alt={school.name} />
+                                    <img src={institution.image_url} alt={institution.name} />
                                 </div>
 
                                 <div className="popular-card-content">
                                     <div className="popular-card-header">
-                                        <h3 className="popular-card-title">{school.name}</h3>
+                                        <h3 className="popular-card-title">{institution.name}</h3>
                                         <div className="popular-card-location">
-                                            <span>{school.city}, {school.district}</span>
+                                            <span>{institution.city}</span>
                                         </div>
                                     </div>
 
-                                    <p className="popular-card-description">{school.description}</p>
-
-                                    <div className="popular-card-tags">
-                                        {school.tags.map((tag, index) => (
-                                            <span key={index} className="popular-tag">{tag}</span>
-                                        ))}
-                                    </div>
+                                    <p className="popular-card-description">
+                                        <span>{institution.description}</span>
+                                    </p>
 
                                     <div className="popular-card-footer">
                                         <div className="popular-price">
-                                            {school.price} {school.currency}
-                                            <span className="popular-period"> / {school.period}</span>
+                                            {institution.price_from} - {institution.price_to} {institution.currency}
+                                            <span className="popular-period"></span>
                                         </div>
 
                                         <div className="popular-card-stats">
                                             <div className="popular-rating">
-                                                <StarIcon className="w-4 h-4 mr-1 text-yellow-500" />                                                {school.rating}
+                                                <StarIcon className="mr-1 h-4 w-4 text-yellow-500" /> {institution.rating}
                                             </div>
 
                                             <div className="popular-views">
-                                                <EyeIcon className="w-4 h-4 mr-1 text-red-400"></EyeIcon>
-                                                {school.views}
+                                                <EyeIcon className="mr-1 h-4 w-4 text-red-400"></EyeIcon>
+                                                {institution.views}
                                             </div>
                                         </div>
 
-                                        <button className="popular-cta">
-                                            Подробнее
-                                        </button>
+                                        <button className="popular-cta cursor-pointer">Подробнее</button>
                                     </div>
                                 </div>
                             </div>
@@ -133,7 +126,7 @@ const Main = () => {
                             <option value="4">Университет</option>
                         </select>
                         <button>
-                            <ArrowRightIcon className="w-7 h-7 ml-1"></ArrowRightIcon>
+                            <ArrowRightIcon className="ml-1 h-7 w-7"></ArrowRightIcon>
                         </button>
                     </div>
                 </div>

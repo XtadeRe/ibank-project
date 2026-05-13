@@ -27,7 +27,7 @@ const Header = () => {
         <header className="fixed top-0 right-0 left-0 z-50 bg-white shadow-sm">
             <div className="container mx-auto px-4 py-4">
                 <nav className="flex items-center justify-between">
-                    <Link href="/">
+                    <Link href="/" className="flex items-center">
                         <h1 className="text-2xl font-bold tracking-widest text-gray-900 uppercase">StudyGate</h1>
                     </Link>
 
@@ -80,7 +80,7 @@ const Header = () => {
                                 <form onSubmit={handleLogout}>
                                     <button
                                         type="submit"
-                                        className="rounded-lg bg-gray-100 px-4 py-2 font-medium text-gray-700 transition-colors duration-300 hover:bg-gray-200"
+                                        className="cursor-pointer rounded-lg bg-gray-100 px-4 py-2 font-medium text-gray-700 transition-colors duration-300 hover:bg-gray-200"
                                     >
                                         Выйти
                                     </button>

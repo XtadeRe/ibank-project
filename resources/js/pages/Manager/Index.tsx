@@ -2,7 +2,7 @@ import StatusModal from '@/components/modalChangeStatus';
 import DefaultLayout from '@/layouts/DefaultLayouts';
 import { CalendarIcon, CurrencyDollarIcon, DocumentTextIcon, PhoneIcon, UserIcon } from '@heroicons/react/24/outline';
 import { PageProps } from '@inertiajs/core';
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 
 interface Bid {
@@ -16,6 +16,8 @@ interface Bid {
     files: FileInfo[] | null;
     created_at: string;
     status?: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+    institution_status: 'SENT_TO_UNIVERSITY' | 'OFFER' | 'VISA_ISSUED' | 'REJECTED_BY_UNIVERSITY';
+    instruction?: boolean;
     institution?: Institution;
 }
 
@@ -40,6 +42,10 @@ const Manager = ({ bids }: Props) => {
                 return 'bg-blue-100 text-blue-800';
             case 'cancelled':
                 return 'bg-gray-100 text-gray-800';
+            case 'accepted':
+                return 'bg-green-100 text-green-800';
+            case 'denied':
+                return 'bg-red-100 text-red-800';
             default:
                 return 'bg-gray-100 text-gray-800';
         }
@@ -57,8 +63,29 @@ const Manager = ({ bids }: Props) => {
                 return 'Завершено';
             case 'cancelled':
                 return 'Отменено';
+            case 'accepted':
+                return 'Документы в порядке';
+            case 'denied':
+                return 'Документы не прошли';
             default:
                 return 'Не указан';
+        }
+    };
+
+    const getInstitutionStatus = (institution_status?: string) => {
+        switch (institution_status) {
+            case 'SENT_TO_UNIVERSITY':
+                return 'Ожидаем ответ от университета';
+            case 'OFFER':
+                return 'Оформление визы!';
+            case 'VISA_ISSUED':
+                return 'Виза оформлена';
+            case 'REJECTED_BY_UNIVERSITY':
+                return 'Отклонена университетом';
+            case 'completed':
+                return 'Завершена';
+            default:
+                return 'Ожидаем ответ от университета';
         }
     };
 
@@ -108,11 +135,19 @@ const Manager = ({ bids }: Props) => {
                                                 <div className="mb-4 flex items-start justify-between">
                                                     <div>
                                                         <h2 className="mb-2 text-2xl font-bold text-gray-900">Заявка #{bid.id}</h2>
-                                                        <span
-                                                            className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${getStatusColor(bid.status)}`}
-                                                        >
-                                                            {getStatusText(bid.status)}
-                                                        </span>
+                                                        {bid.institution_status ? (
+                                                            <span
+                                                                className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${getStatusColor(bid.status)}`}
+                                                            >
+                                                                Статус от УЗ: {getInstitutionStatus(bid.institution_status)}
+                                                            </span>
+                                                        ) : (
+                                                            <span
+                                                                className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${getStatusColor(bid.status)}`}
+                                                            >
+                                                                Статус на сайте: {getStatusText(bid.status)}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -186,7 +221,7 @@ const Manager = ({ bids }: Props) => {
                                                         })}
                                                     </span>
                                                 </div>
-                                                {bid.status == 'rejected' ? (
+                                                {bid.status == 'rejected' || bid.status == 'completed' ? (
                                                     <div className="flex w-full flex-col gap-2">
                                                         <button
                                                             onClick={() => deleteBid(bid.id)}
@@ -197,15 +232,43 @@ const Manager = ({ bids }: Props) => {
                                                     </div>
                                                 ) : (
                                                     <div className="flex w-full flex-col gap-2">
-                                                        <button className="action-button action-primary w-full text-center">
-                                                            Просмотреть детали
-                                                        </button>
-                                                        <button
-                                                            onClick={() => openModal(bid)}
-                                                            className="action-button action-secondary w-full text-center"
+                                                        <Link
+                                                            href={`/profile/manager_menu/${bid.id}/details`}
+                                                            className="action-button action-primary w-full text-center"
                                                         >
-                                                            Изменить статус
-                                                        </button>
+                                                            Просмотреть детали
+                                                        </Link>
+                                                        {bid.institution_status ? (
+                                                            <button
+                                                                onClick={() => openModal(bid)}
+                                                                className="action-button action-secondary w-full text-center"
+                                                            >
+                                                                Статус от УЗ
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => openModal(bid)}
+                                                                className="action-button action-secondary w-full text-center"
+                                                            >
+                                                                Изменить статус
+                                                            </button>
+                                                        )}
+                                                        {bid.institution_status == 'VISA_ISSUED' ? (
+                                                            <>
+                                                                {bid.instruction == true ? (
+                                                                    <p className="action-button instructuon_btn-lock w-full text-center">
+                                                                        Инструкция выслана
+                                                                    </p>
+                                                                ) : (
+                                                                    <Link
+                                                                        href={`/profile/manager_menu/${bid.id}/instruction`}
+                                                                        className="action-button instructuon_btn w-full text-center"
+                                                                    >
+                                                                        Выслать инструкцию
+                                                                    </Link>
+                                                                )}
+                                                            </>
+                                                        ) : null}
                                                     </div>
                                                 )}
 
@@ -215,16 +278,6 @@ const Manager = ({ bids }: Props) => {
                                                             <DocumentTextIcon className="h-4 w-4" />
                                                             Файлы: {bid.files.length}
                                                         </p>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {bid.files.slice(0, 3).map((file, index) => (
-                                                                <span key={index} className="rounded bg-gray-100 px-2 py-1 text-xs">
-                                                                    📎 Файл {index + 1}
-                                                                </span>
-                                                            ))}
-                                                            {bid.files.length > 3 && (
-                                                                <span className="rounded bg-gray-100 px-2 py-1 text-xs">+{bid.files.length - 3}</span>
-                                                            )}
-                                                        </div>
                                                     </div>
                                                 )}
                                             </div>

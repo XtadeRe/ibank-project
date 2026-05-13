@@ -24,7 +24,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 55000,
                 'price_to' => 75000,
                 'currency' => 'USD',
-                'views' => 1250,
+                'views' => 0,
             ],
             [
                 'name' => 'MIT',
@@ -39,7 +39,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 53000,
                 'price_to' => 72000,
                 'currency' => 'USD',
-                'views' => 1850,
+                'views' => 0,
             ],
             [
                 'name' => 'Harvard University',
@@ -54,7 +54,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 58000,
                 'price_to' => 78000,
                 'currency' => 'USD',
-                'views' => 2100,
+                'views' => 0,
             ],
             [
                 'name' => 'University of Tokyo',
@@ -69,7 +69,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 4500,
                 'price_to' => 8500,
                 'currency' => 'USD',
-                'views' => 890,
+                'views' => 0,
             ],
             [
                 'name' => 'Kyoto University',
@@ -84,7 +84,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 4200,
                 'price_to' => 8000,
                 'currency' => 'USD',
-                'views' => 750,
+                'views' => 0,
             ],
             [
                 'name' => 'Tokyo Galaxy Japanese Language School',
@@ -99,7 +99,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 4200,
                 'price_to' => 8000,
                 'currency' => 'USD',
-                'views' => 900,
+                'views' => 0,
             ],
             [
                 'name' => 'University of Oxford',
@@ -114,7 +114,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 25000,
                 'price_to' => 45000,
                 'currency' => 'GBP',
-                'views' => 1650,
+                'views' => 0,
             ],
             [
                 'name' => 'Imperial College London',
@@ -129,7 +129,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 32000,
                 'price_to' => 48000,
                 'currency' => 'GBP',
-                'views' => 1420,
+                'views' => 0,
             ],
             [
                 'name' => 'University of Toronto',
@@ -144,7 +144,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 28000,
                 'price_to' => 52000,
                 'currency' => 'CAD',
-                'views' => 1320,
+                'views' => 0,
             ],
             [
                 'name' => 'University of British Columbia',
@@ -159,7 +159,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 26000,
                 'price_to' => 50000,
                 'currency' => 'CAD',
-                'views' => 980,
+                'views' => 0,
             ],
 
             // Австралия
@@ -176,7 +176,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 35000,
                 'price_to' => 55000,
                 'currency' => 'AUD',
-                'views' => 1100,
+                'views' => 0,
             ],
             [
                 'name' => 'University of Melbourne',
@@ -191,7 +191,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 38000,
                 'price_to' => 58000,
                 'currency' => 'AUD',
-                'views' => 1250,
+                'views' => 0,
             ],
             [
                 'name' => 'Tokyo Institute of Technology',
@@ -206,7 +206,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 4000,
                 'price_to' => 7500,
                 'currency' => 'USD',
-                'views' => 620,
+                'views' => 0,
             ],
             [
                 'name' => 'California Institute of Technology',
@@ -221,7 +221,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 56000,
                 'price_to' => 76000,
                 'currency' => 'USD',
-                'views' => 1450,
+                'views' => 0,
             ],
             [
                 'name' => 'University of Cambridge',
@@ -236,7 +236,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 27000,
                 'price_to' => 46000,
                 'currency' => 'GBP',
-                'views' => 1780,
+                'views' => 0,
             ],
             [
                 'name' => 'McGill University',
@@ -251,7 +251,7 @@ class InstitutionSeeder extends Seeder
                 'price_from' => 29000,
                 'price_to' => 53000,
                 'currency' => 'CAD',
-                'views' => 1120,
+                'views' => 0,
             ],
         ];
 

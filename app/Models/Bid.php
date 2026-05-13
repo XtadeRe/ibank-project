@@ -16,7 +16,9 @@ class Bid extends Model
         'tg_username',
         'files',
         'buy_method',
-        'status'
+        'status',
+        'institution_status',
+        'instruction'
     ];
 
     protected $casts = [

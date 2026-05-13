@@ -204,12 +204,20 @@ const Profile = ({ user, bids }: Props) => {
                                         </Link>
                                     )}
                                     {user.role == 'manager' && (
-                                        <Link href="/profile/manager_menu">
-                                            <div className="stat-item-button cursor-pointer">
-                                                <div className="stat-label-button text-white">Менеджер меню</div>
-                                                <ArrowRightIcon className="stat-icon-button" />
-                                            </div>
-                                        </Link>
+                                        <>
+                                            <Link href="/profile/bids">
+                                                <div className="stat-item-button cursor-pointer">
+                                                    <div className="stat-label-button text-white">Перейти к заявкам</div>
+                                                    <ArrowRightIcon className="stat-icon-button" />
+                                                </div>
+                                            </Link>
+                                            <Link href="/profile/manager_menu">
+                                                <div className="stat-item-button cursor-pointer">
+                                                    <div className="stat-label-button text-white">Менеджер меню</div>
+                                                    <ArrowRightIcon className="stat-icon-button" />
+                                                </div>
+                                            </Link>
+                                        </>
                                     )}
                                     {user.role == 'admin' && (
                                         <Link href="/profile/admin_menu">

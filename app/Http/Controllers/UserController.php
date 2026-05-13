@@ -45,14 +45,17 @@ class UserController extends Controller
             return back()->with('error', 'Нельзя отменить уже одобренную или завершенную заявку');
         }
 
-        $bid->update(['status' => "cancelled"]);
+        $bid->update([
+            'status' => $request->status,
+            'institution_status' => $request->status 
+        ]);
 
-        \Log::info('Заявка отменена', [
+        \Log::info('Статус изменён', [
             'user_id' => auth()->id(),
             'bid_id' => $bid->id,
             'institution_id' => $bid->institution_id,
         ]);
 
-        return redirect()->back()->with('success', 'Заявка успешно отменена');
+        return redirect()->back()->with('success', 'Статус заявки успешно изменён');
     }
 }
