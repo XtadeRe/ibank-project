@@ -1,8 +1,9 @@
-const { exec, execSync } = require('child_process');
+const { exec, execSync, spawn } = require('child_process');
 const util = require('util');
 const fs = require('fs');
 const path = require('path');
 const NodeCache = require('node-cache');
+
 
 const stacksCache = new NodeCache({ stdTTL: 3, checkperiod: 1 });
 const stackInfoCache = new NodeCache({ stdTTL: 5, checkperiod: 1 });
@@ -128,7 +129,33 @@ function getDetailedContainerInfo(stackName) {
     }
 }
 
+function runCommandStream(command, args, options = {}) {
+    return new Promise((resolve, reject) => {
+        const child = spawn(command, args, {
+            stdio: ['ignore', 'pipe', 'pipe'],
+            ...options
+        });
+
+        child.stdout.on('data', (data) => {
+            const text = data.toString('utf8');
+            process.stdout.write(text);
+        });
+
+        child.stderr.on('data', (data) => {
+            const text = data.toString('utf8');
+            process.stderr.write(text);
+        });
+
+        child.on('error', reject);
+        child.on('close', (code) => {
+            if (code === 0) resolve({ code });
+            else reject(new Error(`Command failed: ${command} ${args.join(' ')} (exit code: ${code})`));
+        });
+    });
+}
+
 async function startStackAsync(git_branch, stackType, stackName, operationId) {
+
     const stackDir = path.join(global.STACKS_DIR, stackName);
     const COMPOSE_FILE_MAP = {
         'full': 'docker-compose.ib.yml',
@@ -250,7 +277,12 @@ DB_PASSWORD=
             message: 'Запускаем Docker Compose...'
         });
 
-        await execPromise(`cd "${stackDir}" && docker-compose --env-file .env -f ${composeFile} -p ${stackName} up -d`);
+        await runCommandStream(
+            'docker-compose',
+            ['--env-file', '.env', '-f', composeFile, '-p', stackName, 'up', '-d'],
+            { cwd: stackDir }
+        );
+
 
         if (stackType === 'stack') {
             global.activeOperations.set(operationId, {
