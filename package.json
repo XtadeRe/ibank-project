@@ -1,0 +1,26 @@
+{
+  "name": "docker-agent",
+  "version": "1.0.0",
+  "description": "Docker Agent for Sandbox Orchestrator",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon --ignore docker-stacks/ server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dockerode": "^4.0.2",
+    "dotenv": "^16.4.7",
+    "express": "^4.22.1",
+    "morgan": "^1.10.0",
+    "node-cache": "^5.1.2",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

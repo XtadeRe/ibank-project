@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/docker-stacks/yml/backend" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/docker-stacks/yml/backend-java" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/docker-stacks/yml/backend-java2" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/docker-stacks/yml/backendjava" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/docker-stacks/yml/citesite" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/docker-stacks/yml/fulljava" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/docker-stacks/yml/java2" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/docker-stacks/yml/javaaf" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/docker-stacks/yml/javastack111" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/docker-stacks/yml/javastackkk" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/docker-stacks/yml/sandbox" vcs="Git" />
+  </component>
+</project>

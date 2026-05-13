@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="WEB_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/back/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/backend/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/start/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/full-20260402133902/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/site2/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/qweqwe/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/qweqwe123123/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/sandbox/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/site123/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/sandboxx/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/startsandbox/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/startsandboxx/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/sand/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/startttt/backend" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docker-stacks/yml/ssttaarrtt/backend" isTestSource="false" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>
