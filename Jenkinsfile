@@ -3,7 +3,7 @@ pipeline {
 
     parameters {
         string(name: 'BRANCH', defaultValue: 'createStack', description: 'Git branch')
-        choice(name: 'STACK_TYPE', choices: ['compass', 'full', 'api', 'db'], description: 'Stack type')
+        choice(name: 'STACK_TYPE', choices: ['stack', 'api', 'db'], description: 'Stack type')
         string(name: 'STACK_NAME', defaultValue: 'mycompass', description: 'Stack name')
     }
 
