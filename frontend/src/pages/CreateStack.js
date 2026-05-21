@@ -55,7 +55,6 @@ function CreateStack() {
   };
 
   const handleSubmit = async () => {
-    // Валидация всех полей
     if (!form.name) {
       setError("Введите имя стека");
       return;
@@ -89,7 +88,6 @@ function CreateStack() {
       });
       localStorage.setItem("creatingStacks", JSON.stringify(creating));
 
-      // Отправляем все данные из формы на сервер
       await axios.post(`${API_URL}/jenkins/deploy`, {
         branch: form.git_branch,
         stack_type: form.stack_type,
@@ -99,7 +97,6 @@ function CreateStack() {
 
       setSuccess(`Стек "${form.name}" успешно создан!`);
 
-      // Очищаем форму после успешного создания
       setForm({
         name: "",
         git_branch: "",
@@ -185,11 +182,8 @@ function CreateStack() {
             label="Тип стека"
             disabled={submitting}
           >
-            <MenuItem value="full">Full (Полный стек)</MenuItem>
-            <MenuItem value="stack">Stack (Интернет банк)</MenuItem>
+            <MenuItem value="stack">Интернет банк</MenuItem>
             <MenuItem value="studygate">StudyGate</MenuItem>
-            <MenuItem value="backend">Backend сервер</MenuItem>
-            <MenuItem value="db">База данных</MenuItem>
           </Select>
         </FormControl>
 
