@@ -19,7 +19,7 @@ services:
         condition: service_healthy
     networks:
       - compass-network
-    restart: unless-stopped
+    restart: on-failure
 
   db:
     image: mysql:8.0
@@ -36,7 +36,7 @@ services:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
       retries: 10
-    restart: unless-stopped
+    restart: on-failure
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
@@ -51,7 +51,7 @@ services:
       - compass-network
     depends_on:
       - db
-    restart: unless-stopped
+    restart: on-failure
 
   web:
     image: nginx:alpine
@@ -65,7 +65,7 @@ services:
       - compass-network
     depends_on:
       - app
-    restart: unless-stopped
+    restart: on-failure
 
 networks:
   compass-network:
