@@ -15,6 +15,7 @@ function UptimeChart({ stackId, stackName }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [isRefreshing, setIsRefreshing] = useState(false); 
     const API_URL = React.useContext(ApiContext);
 
     const isMountedRef = React.useRef(true);
@@ -23,7 +24,7 @@ function UptimeChart({ stackId, stackName }) {
         return () => { isMountedRef.current = false; };
     }, []);
 
-    const fetchUptimeData = React.useCallback(async () => {
+    const fetchUptimeData = React.useCallback(async (isInitialLoad = false) => {
         if (!isMountedRef.current) return;
 
         const identifier = stackId || stackName;
@@ -34,7 +35,11 @@ function UptimeChart({ stackId, stackName }) {
         }
 
         if (isMountedRef.current) {
-            setLoading(true);
+            if (isInitialLoad) {
+                setLoading(true);
+            } else {
+                setIsRefreshing(true); 
+            }
         }
 
         try {
@@ -42,7 +47,7 @@ function UptimeChart({ stackId, stackName }) {
                 headers: {
                     'Cache-Control': 'no-cache'
                 },
-                timeout: 20000  // Увеличили до 20s
+                timeout: 20000
             });
 
             if (isMountedRef.current) {
@@ -56,7 +61,7 @@ function UptimeChart({ stackId, stackName }) {
             }
 
             console.error('Uptime fetch error:', err);
-            if (isMountedRef.current) {
+            if (isMountedRef.current && isInitialLoad) {
                 let errorMsg = 'Ошибка загрузки статистики';
                 if (err.response?.status === 404) {
                     errorMsg = 'Статистика временно недоступна';
@@ -69,6 +74,7 @@ function UptimeChart({ stackId, stackName }) {
         } finally {
             if (isMountedRef.current) {
                 setLoading(false);
+                setIsRefreshing(false);
             }
         }
     }, [API_URL, stackId, stackName, isMountedRef]);
@@ -83,9 +89,9 @@ function UptimeChart({ stackId, stackName }) {
 
         setError('');
 
-        fetchUptimeData();
+        fetchUptimeData(true);
 
-        const interval = setInterval(fetchUptimeData, 30000);  // Каждые 30 сек
+        const interval = setInterval(() => fetchUptimeData(false), 30000);
 
         const timeInterval = setInterval(() => {
             if (isMountedRef.current) {
@@ -108,7 +114,8 @@ function UptimeChart({ stackId, stackName }) {
         );
     }
 
-    if (loading) {
+    // Показываем полный загрузчик только при первой загрузке
+    if (loading && !data) {
         return (
             <Box display="flex" justifyContent="center" p={3}>
                 <CircularProgress />
@@ -165,15 +172,17 @@ function UptimeChart({ stackId, stackName }) {
                         <Typography variant="h6">
                             Доступность за 24 часа
                         </Typography>
-                        <Chip
-                            label={`Сейчас: ${currentTime.toLocaleTimeString()}`}
-                            size="small"
-                            color="primary"
-                        />
+                        <Box display="flex" alignItems="center" gap={1}>
+                            <Chip
+                                label={`Сейчас: ${currentTime.toLocaleTimeString()}`}
+                                size="small"
+                                color="primary"
+                            />
+                        </Box>
                     </Box>
 
                     {data.chart && data.chart.length > 0 ? (
-                        <Box sx={{ width: '100%', height: 350, minWidth: '550px' }}>
+                        <Box sx={{ width: '100%', height: 350, minWidth: '550px', opacity: isRefreshing ? 0.8 : 1, transition: 'opacity 0.3s' }}>
                             <ResponsiveContainer>
                                 <LineChart
                                     data={data.chart}
@@ -240,7 +249,21 @@ function UptimeChart({ stackId, stackName }) {
                                         name="Доступность %"
                                         stroke="#8884d8"
                                         strokeWidth={3}
-                                        dot={{ r: 4, fill: '#8884d8' }}
+                                        dot={(props) => {
+                                            const { cx, cy, payload } = props;
+                                            if (!payload || payload.checks === 0) {
+                                                return null;
+                                            }
+                                            return (
+                                                <circle
+                                                    cx={cx}
+                                                    cy={cy}
+                                                    r={4}
+                                                    fill="#8884d8"
+                                                    stroke="none"
+                                                />
+                                            );
+                                        }}
                                         activeDot={{ r: 8 }}
                                     />
                                 </LineChart>
