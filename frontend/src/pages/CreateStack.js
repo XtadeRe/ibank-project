@@ -160,18 +160,19 @@ function CreateStack() {
           }
         />
 
-        <TextField
-          fullWidth
-          label="Ветка Git"
-          name="git_branch"
-          value={form.git_branch}
-          onChange={handleChange}
-          margin="normal"
-          disabled={submitting}
-          required
-          placeholder="например: main, develop, studygate"
-          helperText="Введите название ветки из репозитория"
-        />
+        <FormControl fullWidth margin="normal" required>
+          <InputLabel>Ветка</InputLabel>
+          <Select
+            name="git_branch"
+            value={form.git_branch}
+            onChange={handleChange}
+            label="Ветка гит"
+            disabled={submitting}
+          >
+            <MenuItem value="createStack">createStack</MenuItem>
+            <MenuItem value="studygate">StudyGate</MenuItem>
+          </Select>
+        </FormControl>
 
         <FormControl fullWidth margin="normal" required>
           <InputLabel>Тип стека</InputLabel>
@@ -182,8 +183,11 @@ function CreateStack() {
             label="Тип стека"
             disabled={submitting}
           >
-            <MenuItem value="stack">Интернет банк</MenuItem>
-            <MenuItem value="studygate">StudyGate</MenuItem>
+            {form.git_branch == "createStack" ? (
+              <MenuItem value="stack">Интернет банк</MenuItem>
+            ) : (
+              <MenuItem value="studygate">StudyGate</MenuItem>
+            )}
           </Select>
         </FormControl>
 

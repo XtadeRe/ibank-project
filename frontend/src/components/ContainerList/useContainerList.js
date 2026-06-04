@@ -151,7 +151,6 @@ export function useContainerList() {
             return;
         }
         try {
-            // Optimistic UI update
             setStacks(prev => prev.map(s =>
                 s.id === stackId ? { ...s, status: 'restarting' } : s
             ));
@@ -159,7 +158,6 @@ export function useContainerList() {
             startTransition(() => fetchDashboardData(true));
         } catch (err) {
             setError('Ошибка перезапуска стека');
-            // Revert optimistic update on error
             startTransition(() => fetchDashboardData(true));
         }
     }, [API_URL, fetchDashboardData, startTransition]);
@@ -170,7 +168,6 @@ export function useContainerList() {
             return;
         }
         try {
-            // Optimistic UI update
             const removedName = deleteDialog.stackName;
             setStacks(prev => prev.filter(s => s.name !== removedName));
             setDeleteDialog({ open: false, stackId: null, stackName: '' });
@@ -178,7 +175,6 @@ export function useContainerList() {
             startTransition(() => fetchDashboardData(true));
         } catch (err) {
             setError('Ошибка удаления стека');
-            // Revert optimistic update on error
             startTransition(() => fetchDashboardData(true));
         }
     }, [API_URL, deleteDialog.stackName, fetchDashboardData, startTransition]);
