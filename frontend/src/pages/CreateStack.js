@@ -136,9 +136,7 @@ function CreateStack() {
           >
             {success}
             <Box sx={{ mt: 1 }}>
-              <Link href="/" onClick={() => navigate("/")}>
-                Перейти к списку →
-              </Link>
+              <Link onClick={() => navigate("/")}>Перейти к списку →</Link>
             </Box>
           </Alert>
         )}
