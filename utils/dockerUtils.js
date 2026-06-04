@@ -475,30 +475,9 @@ DB_PASSWORD=
       stackName,
       ports: finalContainerPorts,
       urls: {
-        web: finalContainerPorts.web
+        frontend: finalContainerPorts.web
           ? `http://localhost:${finalContainerPorts.web}`
           : null,
-        api: finalContainerPorts.web
-          ? `http://localhost:${finalContainerPorts.web}/api`
-          : null,
-        app: finalContainerPorts.app
-          ? `http://localhost:${finalContainerPorts.app}`
-          : null,
-        appApi: finalContainerPorts.app
-          ? `http://localhost:${finalContainerPorts.app}/api`
-          : null,
-        frontend: finalContainerPorts.frontend
-          ? `http://localhost:${finalContainerPorts.frontend}`
-          : null,
-        phpmyadmin: finalContainerPorts.phpmyadmin
-          ? `http://localhost:${finalContainerPorts.phpmyadmin}`
-          : null,
-      },
-      portsInfo: {
-        appPort: finalContainerPorts.app,
-        webPort: finalContainerPorts.web,
-        frontendPort: finalContainerPorts.frontend,
-        phpmyadminPort: finalContainerPorts.phpmyadmin,
       },
     };
 
