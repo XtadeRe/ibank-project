@@ -562,8 +562,11 @@ async function deleteStackAsync(stackName, operationId) {
       .join(" ");
 
     if (containerIds) {
-      execSync(`docker rm -f ${containerIds}`, { stdio: "inherit" });
-      console.log(`Контейнеры стека ${stackName} удалены`);
+      execSync(`docker-compose -p ${stackName} down -v`, {
+        stdio: "inherit",
+        cwd: stackDir,
+      });
+      console.log(`Стек ${stackName} полностью удален`);
     }
     clearStackCache(stackName);
 
