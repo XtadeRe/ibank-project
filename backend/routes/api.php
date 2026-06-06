@@ -18,12 +18,8 @@ Route::apiResource('sandboxes', SandboxController::class);
 // Управление стеком
 Route::post('/sandboxes/{id}/restart', [SandboxController::class, 'restart']);
 Route::post('/sandboxes/{id}/check-health', [SandboxController::class, 'checkHealth']);
+Route::post('/sandboxes/{id}/delete', [SandboxController::class, 'delete']);
 
-// Докер агент
-Route::prefix('docker')->group(function () {
-    Route::post('/containers/{containerId}/restart', [DockerAgentController::class, 'restartContainer']);
-    Route::post('/stacks/{stackName}/delete', [DockerAgentController::class, 'deleteStack']);
-});
 
 // История
 Route::get('/history', [HistoryController::class, 'getHistory']);

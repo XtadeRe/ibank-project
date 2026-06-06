@@ -116,10 +116,49 @@ return SandboxResource::collection($sandboxes);
         }
     }
 
+    public function delete($id) {
+        try {
+
+            $sandbox = Sandbox::findOrFail($id);
+            $sandbox->delete();
+            
+            $result = $this->dockerAgent->deleteStack($sandbox->name);
+            
+            if ($result['success']) {
+
+                History::log(
+                    $sandbox->id,
+                    'delete',
+                    "Стек {$sandbox->name} удалён"
+                );
+
+                Cache::forget('dashboard_data_full');
+                Cache::forget('docker_stacks_list');
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Стек удалён',
+                    'sandbox' => new SandboxResource($sandbox),
+                    'data' => $result
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ошибка удаления стека',
+                    'error' => $result['error'] ?? 'Неизвестная ошибка',
+                    'sandbox' => new SandboxResource($sandbox),
+                ], 500);
+            }
+
+        } catch (\Exception $e) {
+
+        }
+    }
+
     public function restart($id)
     {
         try {
-            $sandbox = Sandbox::findOrFail($id); // Находит песочницу или выбрасывает 404
+            $sandbox = Sandbox::findOrFail($id);
 
             Log::info("Попытка перезапуска стека: {$sandbox->name} (ID: {$id})");
 

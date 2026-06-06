@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('history', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('sandbox_id')->constrained('sandboxes', 'id');
+            $table->foreignId('sandbox_id')->nullable()->constrained('sandboxes', 'id')->nullOnDelete();
             $table->string('action'); // create, start, stop, restart, delete
             $table->text('message')->nullable();
             $table->timestamps();

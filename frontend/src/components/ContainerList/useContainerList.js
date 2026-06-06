@@ -209,7 +209,7 @@ export function useContainerList() {
     try {
       setStacks((prev) => prev.filter((s) => s.name !== stackName));
 
-      await axios.post(`${API_URL}/docker/stacks/${stackName}/delete`);
+      await axios.post(`${API_URL}/sandboxes/${stackId}/delete`);
       fetchDashboardData(true);
     } catch (err) {
       setError("Ошибка удаления стека");
