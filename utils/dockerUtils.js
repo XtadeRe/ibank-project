@@ -477,7 +477,7 @@ DB_PASSWORD=
       urls: {
         frontend: finalContainerPorts.web
           ? `http://localhost:${finalContainerPorts.web}`
-          : null,
+          : `http://localhost:${finalContainerPorts.frontend}`,
       },
     };
 
