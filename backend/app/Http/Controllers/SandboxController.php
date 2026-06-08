@@ -120,7 +120,7 @@ class SandboxController extends Controller
         try {
 
             $sandbox = Sandbox::findOrFail($id);
-            $sandbox->delete();
+            
             
             $result = $this->dockerAgent->deleteStack($sandbox->name);
             
@@ -131,6 +131,8 @@ class SandboxController extends Controller
                     'delete',
                     "Стек {$sandbox->name} удалён"
                 );
+
+            $sandbox->delete();
 
                 Cache::forget('dashboard_data_full');
                 Cache::forget('docker_stacks_list');
