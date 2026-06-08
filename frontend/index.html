@@ -1,89 +1,90 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Compass Bank</title>
-</head>
-<body>
-<h1>Compass Bank Demo</h1>
+  </head>
+  <body>
+    <h1>Compass Bank Demo</h1>
 
-<div>
-    <h2>Баланс: $<span id="balance">0</span></h2>
-</div>
+    <div>
+      <h2>Баланс: $<span id="balance">0</span></h2>
+    </div>
 
-<div>
-    <input type="number" id="amount" placeholder="Сумма">
-    <button onclick="deposit()">Пополнить</button>
-    <button onclick="withdraw()">Снять</button>
-</div>
+    <div>
+      <input type="number" id="amount" placeholder="Сумма" />
+      <button onclick="deposit()">Пополнить</button>
+      <button onclick="withdraw()">Снять</button>
+    </div>
 
-<div id="message"></div>
+    <div id="message"></div>
 
-<div>
-    <h3>История операций</h3>
-    <ul id="transactions"></ul>
-</div>
+    <div>
+      <h3>История операций</h3>
+      <ul id="transactions"></ul>
+    </div>
 
-<script>
+    <script>
+      const API_URL = "";
 
-    const API_URL = ''
-
-    async function loadBalance() {
+      async function loadBalance() {
         const res = await fetch(`${API_URL}/api/balance`);
         const data = await res.json();
-        document.getElementById('balance').innerText = data.balance;
-    }
+        document.getElementById("balance").innerText = data.balance;
+      }
 
-    async function loadTransactions() {
+      async function loadTransactions() {
         const res = await fetch(`${API_URL}/api/transactions`);
         const transactions = await res.json();
-        const list = document.getElementById('transactions');
-        list.innerHTML = '';
-        transactions.forEach(t => {
-            const li = document.createElement('li');
-            li.innerText = `${t.type}: $${t.amount} (${new Date(t.timestamp).toLocaleString()})`;
-            list.appendChild(li);
+        const list = document.getElementById("transactions");
+        list.innerHTML = "";
+        transactions.forEach((t) => {
+          const li = document.createElement("li");
+          li.innerText = `${t.type}: $${t.amount} (${new Date(t.timestamp).toLocaleString()})`;
+          list.appendChild(li);
         });
-    }
+      }
 
-    async function deposit() {
-        const amount = parseFloat(document.getElementById('amount').value);
+      async function deposit() {
+        const amount = parseFloat(document.getElementById("amount").value);
         const res = await fetch(`${API_URL}/api/deposit`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({amount: amount})
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: amount }),
         });
         const data = await res.json();
         if (data.success) {
-            document.getElementById('message').innerText = 'Пополнено';
-            loadBalance();
-            loadTransactions();
+          document.getElementById("message").innerText = "Пополнено";
+          loadBalance();
+          loadTransactions();
         } else {
-            document.getElementById('message').innerText = data.error;
+          document.getElementById("message").innerText = data.error;
         }
-    }
+      }
 
-    async function withdraw() {
-        const amount = parseFloat(document.getElementById('amount').value);
+      async function withdraw() {
+        const amount = parseFloat(document.getElementById("amount").value);
         const res = await fetch(`${API_URL}/api/withdraw`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({amount: amount})
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: amount }),
         });
         const data = await res.json();
         if (data.success) {
-            document.getElementById('message').innerText = 'Снято';
-            loadBalance();
-            loadTransactions();
+          document.getElementById("message").innerText = "Снято";
+          loadBalance();
+          loadTransactions();
         } else {
-            document.getElementById('message').innerText = data.error;
+          document.getElementById("message").innerText = data.error;
         }
-    }
+      }
 
-    // Инициализация
-    loadBalance();
-    loadTransactions();
-    setInterval(() => { loadBalance(); loadTransactions(); }, 5000);
-</script>
-</body>
+      loadBalance();
+      loadTransactions();
+      setInterval(() => {
+        loadBalance();
+        loadTransactions();
+      }, 5000);
+    </script>
+  </body>
 </html>

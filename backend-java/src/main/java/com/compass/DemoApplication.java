@@ -84,7 +84,7 @@ class BankController {
     public Map<String, Object> deposit(@RequestBody Map<String, Double> request) {
         Double amount = request.get("amount");
         if (amount == null || amount <= 0) {
-            return errorResponse("Invalid amount");
+            return errorResponse("Неправильная сумма");
         }
         balance += amount;
         transactionRepository.save(new Transaction("DEPOSIT", amount));
@@ -98,10 +98,10 @@ class BankController {
     public Map<String, Object> withdraw(@RequestBody Map<String, Double> request) {
         Double amount = request.get("amount");
         if (amount == null || amount <= 0) {
-            return errorResponse("Invalid amount");
+            return errorResponse("Неправильная сумма");
         }
         if (amount > balance) {
-            return errorResponse("Insufficient funds");
+            return errorResponse("Не хватает средств");
         }
         balance -= amount;
         transactionRepository.save(new Transaction("WITHDRAW", amount));
