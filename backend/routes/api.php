@@ -14,11 +14,11 @@ Route::get('/branch-data', [DashboardController::class, 'getBranchData']);
 
 // Управление стеками
 Route::apiResource('sandboxes', SandboxController::class);
-
-// Управление стеком
 Route::post('/sandboxes/{id}/restart', [SandboxController::class, 'restart']);
 Route::post('/sandboxes/{id}/check-health', [SandboxController::class, 'checkHealth']);
 Route::post('/sandboxes/{id}/delete', [SandboxController::class, 'delete']);
+// Проверка жизни стека
+Route::get('/sandboxes/{id}/uptime', [SandboxController::class, 'uptime']);
 
 
 // История
@@ -27,4 +27,4 @@ Route::get('/history', [HistoryController::class, 'getHistory']);
 // Дженкинс
 Route::post('/jenkins/deploy', [JenkinsController::class, 'deploy']);
 
-Route::get('/sandboxes/{id}/uptime', [SandboxController::class, 'uptime']);
+

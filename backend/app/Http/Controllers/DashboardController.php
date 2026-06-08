@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Sandbox;
-use App\Services\DockerAgentService; // Убедитесь, что импортировали
+use App\Services\DockerAgentService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
@@ -12,14 +12,11 @@ use Illuminate\Http\Client\Pool;
 class DashboardController extends Controller
 {
     private $dockerAgent;
-
-    // Предположим, имя стека вашего сайта хранится в переменной окружения
     private $siteStackName;
 
     public function __construct()
     {
         $this->dockerAgent = new DockerAgentService(env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001'));
-        // Получаем имя стека из .env или задаём жёстко, например: 'frontend_stack'
         $this->siteStackName = env('SITE_STACK_NAME', '');
     }
 
@@ -28,7 +25,7 @@ class DashboardController extends Controller
         try {
             $startTime = microtime(true);
 
-$allStacks = Cache::remember('docker_stacks_list', 3, fn() => $this->dockerAgent->getStacks());
+            $allStacks = Cache::remember('docker_stacks_list', 3, fn() => $this->dockerAgent->getStacks());
 
             $stacks = $allStacks;
             if (!empty($this->siteStackName)) {
@@ -37,17 +34,16 @@ $allStacks = Cache::remember('docker_stacks_list', 3, fn() => $this->dockerAgent
             }
 
             $cacheKey = 'dashboard_data_full';
-            // Используем $this->dockerAgent напрямую, передав ему URL
+
             $agentBaseUrl = rtrim(env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001'), '/');
 
-$stacksWithDetails = Cache::remember($cacheKey, 5, function () use ($stacks, $agentBaseUrl) { // Снижена задержка до 5s
-$sandboxes = Sandbox::select(['id', 'name', 'git_branch', 'version', 'status', 'created_at'])->limit(50)->get();
-$sandboxesMap = $sandboxes->keyBy('name')->toArray(); // Limit 50 для скорости
+                $stacksWithDetails = Cache::remember($cacheKey, 5, function () use ($stacks, $agentBaseUrl) { 
+                $sandboxes = Sandbox::select(['id', 'name', 'git_branch', 'version', 'status', 'created_at'])->limit(50)->get();
+                $sandboxesMap = $sandboxes->keyBy('name')->toArray();
 
                 $containersData = [];
 
                 if (!empty($stacks)) {
-                    // --- Параллельные запросы к Docker Agent ---
                     $stacksToQuery = [];
                     foreach ($stacks as $stack) {
                         if (!empty($stack['name'] ?? '')) {
@@ -69,7 +65,6 @@ $sandboxesMap = $sandboxes->keyBy('name')->toArray(); // Limit 50 для ско�
                         }
                     }
                     Log::info('Fetched containers for ' . count($stacksToQuery) . ' stacks');
-                    // ------------------------------------------
                 }
 
 
@@ -111,39 +106,6 @@ $sandboxesMap = $sandboxes->keyBy('name')->toArray(); // Limit 50 для ско�
                 'error' => $e->getMessage(),
                 'stacks' => []
             ], 500);
-        }
-    }
-
-    public function getBranchData()
-    {
-        try {
-            $branchesData = $this->dockerAgent->getBranchesCached();
-
-            if (empty($branchesData) || !is_array($branchesData)) {
-                $branchesData = ['master', 'develop', 'createStack'];
-            }
-
-            $branchesData = array_filter($branchesData, function($branch) {
-                return $branch !== null && !empty($branch);
-            });
-
-            $branchesData = array_values($branchesData);
-
-            Log::info('Branch data fetched: ' . count($branchesData) . ' branches');
-
-            return response()->json([
-                'status' => 'success',
-                'data' => $branchesData
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting branch data: ' . $e->getMessage());
-
-            return response()->json([
-                'status' => 'success',
-                'data' => ['master', 'develop', 'createStack'],
-                'warning' => 'Using default branches'
-            ]);
         }
     }
 }

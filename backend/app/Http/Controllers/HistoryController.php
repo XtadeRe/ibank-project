@@ -14,11 +14,11 @@ class HistoryController extends Controller
 
         $perPage = $request->input('per_page', 5);
 
-$history = Cache::remember("history_page_{$page}_{$perPage}", 120, function() use ($page, $perPage) {
-    return History::select(['id', 'sandbox_id', 'action', 'message', 'created_at'])
-        ->orderBy('created_at', 'desc')
-        ->paginate($perPage, ['*'], 'page', $page);
-});
+        $history = Cache::remember("history_page_{$page}_{$perPage}", 120, function() use ($page, $perPage) {
+            return History::select(['id', 'sandbox_id', 'action', 'message', 'created_at'])
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage, ['*'], 'page', $page);
+        });
 
         return response()->json($history);
     }

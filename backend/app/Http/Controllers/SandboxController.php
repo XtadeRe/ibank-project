@@ -28,8 +28,8 @@ class SandboxController extends Controller
     public function index()
     {
         try {
-$sandboxes = Sandbox::recent()->paginate(50);
-return SandboxResource::collection($sandboxes);
+            $sandboxes = Sandbox::recent()->paginate(50);
+            return SandboxResource::collection($sandboxes);
         } catch (\Exception $e) {
             Log::error('Ошибка получения стеков: ' . $e->getMessage());
             return response()->json(['error' => 'Ошибка получения стеков'], 500);
@@ -151,7 +151,12 @@ return SandboxResource::collection($sandboxes);
             }
 
         } catch (\Exception $e) {
-
+            Log::error('Ошибка удаления стека: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка при удалении стека',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -162,11 +167,9 @@ return SandboxResource::collection($sandboxes);
 
             Log::info("Попытка перезапуска стека: {$sandbox->name} (ID: {$id})");
 
-            // Вызываем метод в сервисе для перезапуска через Docker Agent
             $result = $this->dockerAgent->restartStack($sandbox->name);
 
             if ($result['success']) {
-                // Логируем успешный перезапуск
                 History::log(
                     $sandbox->id,
                     'restart',
@@ -180,7 +183,7 @@ return SandboxResource::collection($sandboxes);
                     'success' => true,
                     'message' => 'Стек успешно перезапущен',
                     'sandbox' => new SandboxResource($sandbox),
-                    'data' => $result // Возвращаем данные от агента, если нужно
+                    'data' => $result 
                 ]);
             } else {
                 return response()->json([
@@ -207,67 +210,49 @@ return SandboxResource::collection($sandboxes);
     }
 
     /**
-     * Получить ветки Git
-     */
-    public function getBranches()
-    {
-        try {
-            $branches = $this->dockerAgent->getBranches();
-
-            return response()->json([
-                'success' => true,
-                'branches' => $branches
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Ошибка получения веток: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-                'branches' => ['master', 'develop']
-            ], 500);
-        }
-    }
-
-    /**
      * Получить статистику доступности
      */
     public function uptime($id)
     {
-        $cacheKey = "uptime_data_{$id}";
-        
-        return Cache::remember($cacheKey, 30, function () use ($id) {
-            $sandbox = Sandbox::where('id', $id)->orWhere('name', $id)->first();
+    $cacheKey = "uptime_data_{$id}";
+    
+    return Cache::remember($cacheKey, 30, function () use ($id) {
+        $sandbox = Sandbox::where('id', $id)->orWhere('name', $id)->first();
 
-            if (!$sandbox) {
-                return [
-                    'success' => false,
-                    'error' => 'Стек не найден',
-                    'uptime' => ['day' => 0, 'week' => 0, 'month' => 0],
-                    'chart' => []
-                ];
-            }
-
-            // Параллельные кэшированные запросы
-            $dayStats = Cache::get("uptime_stats_{$sandbox->id}_24") ?: HealthCheck::getUptimeStats($sandbox->id, 24);
-            $weekStats = Cache::get("uptime_stats_{$sandbox->id}_168") ?: HealthCheck::getUptimeStats($sandbox->id, 168);
-            $monthStats = Cache::get("uptime_stats_{$sandbox->id}_720") ?: HealthCheck::getUptimeStats($sandbox->id, 720);
-
-            $uptime = [
-                'day' => $dayStats['uptime'],
-                'week' => $weekStats['uptime'],
-                'month' => $monthStats['uptime'],
-            ];
-
-            $chartKey = "uptime_chart_{$sandbox->id}_v2";
-            $chartData = Cache::remember($chartKey, 60, function () use ($sandbox) {
-                return $this->getChartData($sandbox);
-            });
-
+        if (!$sandbox) {
             return [
-                'success' => true,
-                'uptime' => $uptime,
-                'chart' => $chartData,
-                'total_checks' => $dayStats['total'],
+                'success' => false,
+                'error' => 'Стек не найден',
+                'uptime' => ['day' => 0, 'week' => 0, 'month' => 0],
+                'chart' => []
+            ];
+        }
+        
+        $dayStats = Cache::remember("uptime_stats_{$sandbox->id}_24", 300, function() use ($sandbox) {
+            return HealthCheck::getUptimeStats($sandbox->id, 24);
+        });
+        
+        $weekStats = Cache::remember("uptime_stats_{$sandbox->id}_168", 300, function() use ($sandbox) {
+            return HealthCheck::getUptimeStats($sandbox->id, 168);
+        });
+        
+        $monthStats = Cache::remember("uptime_stats_{$sandbox->id}_720", 300, function() use ($sandbox) {
+            return HealthCheck::getUptimeStats($sandbox->id, 720);
+        });
+
+        $uptime = [
+            'day' => $dayStats['uptime'],
+            'week' => $weekStats['uptime'],
+            'month' => $monthStats['uptime'],
+        ];
+
+        $chartData = $this->getChartData($sandbox);
+
+        return [
+            'success' => true,
+            'uptime' => $uptime,
+            'chart' => $chartData,
+            'total_checks' => $dayStats['total'],
             ];
         });
     }
@@ -318,26 +303,10 @@ return SandboxResource::collection($sandboxes);
         }
     }
 
-    /**
-     * Вспомогательные методы
-     */
-    private function calculateUptime($checks)
-    {
-        if ($checks->isEmpty()) {
-            return 0;
-        }
-
-        $available = $checks->where('is_available', true)->count();
-        $total = $checks->count();
-
-        return round(($available / $total) * 100, 2);
-    }
-
     private function getChartData($sandbox)
     {
         $cacheKeyChart = "uptime_chart_{$sandbox->id}_v2";
         return Cache::remember($cacheKeyChart, 300, function() use ($sandbox) {
-            // SQL агрегация по часам - x100 быстрее чем PHP фильтр коллекции!
             $chartData = DB::table('health_checks')
                 ->selectRaw('
                     DATE_FORMAT(created_at, "%H:00") as hour,
@@ -366,7 +335,6 @@ return SandboxResource::collection($sandboxes);
                 ->values()
                 ->toArray();
 
-            // Заполняем пропущенные часы нулями (для красивого графика)
             $fullChart = [];
             $now = now();
             for ($i = 23; $i >= 0; $i--) {

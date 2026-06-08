@@ -146,32 +146,9 @@ class JenkinsController extends Controller
         }
     }
 
-    /**
-     * GET /api/git-branches
-     */
-    public function getBranches()
-    {
-        try {
-            $branches = $this->dockerAgent->getBranches();
-            return response()->json([
-                'success' => true,
-                'branches' => $branches
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'branches' => ['master', 'develop'],
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * POST /api/jenkins/webhook
-     */
+    
     public function webhook(Request $request)
     {
-        // Ваш существующий код webhook
         Log::info('Webhook получен', $request->all());
         return response()->json(['success' => true]);
     }
