@@ -183,8 +183,10 @@ function CreateStack() {
           >
             {form.git_branch == "createStack" ? (
               <MenuItem value="stack">Интернет банк</MenuItem>
+            ) : form.git_branch == "studygate" ? (
+              <MenuItem value="studygate">Сайт подачи документов</MenuItem>
             ) : (
-              <MenuItem value="studygate">StudyGate</MenuItem>
+              <MenuItem disabled>Выберите ветку</MenuItem>
             )}
           </Select>
         </FormControl>
