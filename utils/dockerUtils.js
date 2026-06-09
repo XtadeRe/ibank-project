@@ -90,7 +90,7 @@ function getContainerPorts(stackName) {
         if (match) ports.app = match[1];
       }
       if (name.includes("_web") || name.includes("_php")) {
-        const match = portsStr.match(/0\.0\.0\.0:(\d+)->8000/);
+        const match = portsStr.match(/0\.0\.0\.0:(\d+)->80/);
         if (match) ports.web = match[1];
       }
       if (name.includes("_phpmyadmin")) {
@@ -108,6 +108,84 @@ function getContainerPorts(stackName) {
     console.error(`Ошибка получения портов для ${stackName}:`, err.message);
     return { web: null, frontend: null, phpmyadmin: null, app: null };
   }
+}
+
+function isPortAvailable(port) {
+  try {
+
+    let dockerOutput;
+    if (process.platform === "win32") {
+      try {
+        dockerOutput = execSync(
+          `docker ps --format "{{.Ports}}" | findstr "0.0.0.0:${port}->"`,
+          { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] },
+        );
+      } catch (e) {
+        dockerOutput = "";
+      }
+    } else {
+      dockerOutput = execSync(
+        `docker ps --format "{{.Ports}}" | grep -E "0.0.0.0:${port}->" || true`,
+        { encoding: "utf8" },
+      );
+    }
+
+    if (dockerOutput && dockerOutput.trim()) {
+      console.log(`Порт ${port} уже используется Docker контейнером`);
+      return false;
+    }
+
+    // Проверяем системные процессы
+    let netstatOutput;
+    if (process.platform === "win32") {
+      try {
+        netstatOutput = execSync(
+          `netstat -ano | findstr :${port} | findstr LISTENING`,
+          { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] },
+        );
+      } catch (e) {
+        netstatOutput = "";
+      }
+    } else {
+      netstatOutput = execSync(`netstat -tuln | grep ":${port} " || true`, {
+        encoding: "utf8",
+      });
+    }
+
+    const isAvailable = !(netstatOutput && netstatOutput.trim());
+    if (!isAvailable) {
+      console.log(`Порт ${port} занят процессом вне Docker`);
+    }
+    return isAvailable;
+  } catch (err) {
+    console.log(`Ошибка проверки порта ${port}:`, err.message);
+    return true;
+  }
+}
+
+async function generateUniquePort(basePort, maxAttempts = 50) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const port = basePort + Math.floor(Math.random() * 100);
+    const available = await isPortAvailable(port);
+    if (available) {
+      console.log(`Выбран свободный порт: ${port}`);
+      return port;
+    }
+    console.log(`Порт ${port} занят, пробуем другой...`);
+  }
+
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const port = 10000 + Math.floor(Math.random() * 40000);
+    const available = await isPortAvailable(port);
+    if (available) {
+      console.log(`Выбран свободный порт из расширенного диапазона: ${port}`);
+      return port;
+    }
+  }
+
+  throw new Error(
+    `Не удалось найти свободный порт после ${maxAttempts * 2} попыток`,
+  );
 }
 
 function getDetailedContainerInfo(stackName) {
@@ -242,25 +320,50 @@ async function startStackAsync(git_branch, stackType, stackName, operationId) {
     let dbPort = null;
     let appPort = null;
 
+    console.log(`Начинаем генерацию портов для стека ${stackType}...`);
+
     if (stackType === "full") {
-      webPort = 8080 + Math.floor(Math.random() * 100) + 1;
-      frontendPort = 3200 + Math.floor(Math.random() * 100);
+      webPort = await generateUniquePort(8080);
+      frontendPort = await generateUniquePort(3200);
+      console.log(
+        `Full стек: web порт=${webPort}, frontend порт=${frontendPort}`,
+      );
     } else if (stackType === "backend") {
-      appPort = 8080 + Math.floor(Math.random() * 100) + 1;
-      dbPort = 3306 + Math.floor(Math.random() * 100);
+      appPort = await generateUniquePort(8080);
+      dbPort = await generateUniquePort(3306);
+      console.log(`Backend стек: app порт=${appPort}, db порт=${dbPort}`);
     } else if (stackType === "stack") {
-      appPort = 8080 + Math.floor(Math.random() * 100) + 1;
-      dbPort = 3306 + Math.floor(Math.random() * 100);
-      webPort = 8081 + Math.floor(Math.random() * 100);
+      appPort = await generateUniquePort(8080);
+      dbPort = await generateUniquePort(3306);
+      webPort = await generateUniquePort(8081);
+      console.log(
+        `Stack стек: app порт=${appPort}, db порт=${dbPort}, web порт=${webPort}`,
+      );
     } else if (stackType === "db") {
-      dbPort = 3306 + Math.floor(Math.random() * 100);
+      dbPort = await generateUniquePort(3306);
+      console.log(`DB стек: db порт=${dbPort}`);
     } else if (stackType === "studygate") {
-      webPort = 8080 + Math.floor(Math.random() * 100) + 1;
-      frontendPort = 5173 + Math.floor(Math.random() * 100);
-      dbPort = 3306 + Math.floor(Math.random() * 100);
+      webPort = await generateUniquePort(8080);
+      frontendPort = await generateUniquePort(5173);
+      dbPort = await generateUniquePort(3306);
+      console.log(
+        `Studygate стек: web порт=${webPort}, frontend порт=${frontendPort}, db порт=${dbPort}`,
+      );
     }
 
-    const pmaPort = 9088 + Math.floor(Math.random() * 100);
+    const pmaPort = await generateUniquePort(9088);
+    console.log(`phpMyAdmin порт: ${pmaPort}`);
+
+    // Сохраненме использованных портов для слежки
+    portsCache.set(`ports_allocated_${stackName}`, {
+      webPort,
+      frontendPort,
+      dbPort,
+      appPort,
+      pmaPort,
+      stackType,
+      allocatedAt: Date.now(),
+    });
 
     let envContent = "";
 
