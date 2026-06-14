@@ -19,6 +19,8 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
     container_name: ${STACK_NAME}_php
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend:/var/www/html
     runtime: runc
