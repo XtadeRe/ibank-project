@@ -15,7 +15,7 @@ app.use(express.json({ limit: "10mb" }));
 
 app.use("/api", require("./routes"));
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Docker Agent запущен на порту ${PORT}`);
-  console.log("Stacks directory:", STACKS_DIR);
+  console.log(`Папка стеков: ${STACKS_DIR}`);
 });

@@ -426,6 +426,7 @@ APP_ENV=development
 APP_DEBUG=true
 APP_KEY=
 APP_URL=http://localhost:${webPort}
+DOCKER_AGENT_URL=http://host.docker.internal:3001
 DB_CONNECTION=mysql
 DB_HOST=db
 DB_PORT=3306
