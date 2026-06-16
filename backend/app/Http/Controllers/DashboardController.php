@@ -4,10 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Sandbox;
 use App\Services\DockerAgentService;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Http\Client\Pool;
 
 class DashboardController extends Controller
 {
@@ -25,73 +23,53 @@ class DashboardController extends Controller
         try {
             $startTime = microtime(true);
 
+            // Получаем список стеков из Docker
             $allStacks = Cache::remember('docker_stacks_list', 3, fn() => $this->dockerAgent->getStacks());
 
-            $stacks = $allStacks;
-            if (!empty($this->siteStackName)) {
-                $stacks = array_filter($allStacks, fn($stack) => ($stack['name'] ?? '') !== $this->siteStackName);
-                $stacks = array_values($stacks);
+            // Получаем sandboxes из БД
+            $sandboxes = Sandbox::select(['id', 'name', 'git_branch', 'version', 'status', 'created_at'])
+                ->limit(50)
+                ->get()
+                ->keyBy('name')
+                ->toArray();
+
+            // Объединяем данные из Docker и БД
+            $stacksWithDetails = [];
+            foreach ($allStacks as $stack) {
+                $stackName = $stack['name'] ?? null;
+                if ($stackName === null) continue;
+
+                // Пропускаем orchestrator если нужно
+                if (!empty($this->siteStackName) && $stackName === $this->siteStackName) {
+                    continue;
+                }
+
+                $sandbox = $sandboxes[$stackName] ?? null;
+
+                // Получаем актуальные контейнеры для стека
+                $containers = $this->dockerAgent->getContainersByStack($stackName);
+                
+                // Обновляем статус на основе контейнеров
+                $status = $this->determineStackStatus($containers);
+                
+                $stacksWithDetails[] = [
+                    'id' => $sandbox['id'] ?? $stack['id'] ?? null,
+                    'name' => $stackName,
+                    'git_branch' => $sandbox['git_branch'] ?? $stack['git_branch'] ?? 'develop',
+                    'version' => $sandbox['version'] ?? $stack['version'] ?? 'v1.0.0',
+                    'status' => $sandbox['status'] ?? $status ?? 'unknown',
+                    'containers' => !empty($containers) ? $containers : ($stack['containers'] ?? []),
+                    'created_at' => $sandbox['created_at'] ?? $stack['created_at'] ?? null,
+                ];
             }
 
-            $cacheKey = 'dashboard_data_full';
-
-            $agentBaseUrl = rtrim(env('DOCKER_AGENT_URL', 'http://host.docker.internal:3001'), '/');
-
-                $stacksWithDetails = Cache::remember($cacheKey, 5, function () use ($stacks, $agentBaseUrl) { 
-                $sandboxes = Sandbox::select(['id', 'name', 'git_branch', 'version', 'status', 'created_at'])->limit(50)->get();
-                $sandboxesMap = $sandboxes->keyBy('name')->toArray();
-
-                $containersData = [];
-
-                if (!empty($stacks)) {
-                    $stacksToQuery = [];
-                    foreach ($stacks as $stack) {
-                        if (!empty($stack['name'] ?? '')) {
-                            $stacksToQuery[] = $stack;
-                        }
-                    }
-                    $responses = Http::pool(fn (Pool $pool) => array_map(
-                        fn($stack) => $pool->get("{$agentBaseUrl}/api/stacks/" . urlencode($stack['name']) . '/info'),
-                        $stacksToQuery
-                    ));
-
-                    // Обрабатываем ответы
-                    foreach ($stacksToQuery as $idx => $stack) {
-                        $response = $responses[$idx] ?? null;
-                        $stackName = $stack['name'];
-                        $containersData[$stackName] = [];
-                        if ($response && $response->successful()) {
-                            $containersData[$stackName] = $response->json()['containers'] ?? [];
-                        }
-                    }
-                    Log::info('Fetched containers for ' . count($stacksToQuery) . ' stacks');
-                }
-
-
-                $result = [];
-                foreach ($stacks as $stack) {
-                    $stackName = $stack['name'] ?? null;
-                    if ($stackName === null) continue;
-
-                    $containers = $containersData[$stackName] ?? [];
-                    $sandbox = $sandboxesMap[$stackName] ?? null;
-
-                    $result[] = [
-                        'id' => $sandbox['id'] ?? null,
-                        'name' => $stackName,
-                        'git_branch' => $sandbox['git_branch'] ?? 'develop',
-                        'version' => $sandbox['version'] ?? 'v1.0.0',
-                        'status' => $sandbox['status'] ?? 'unknown',
-                        'containers' => $containers,
-                        'created_at' => $sandbox['created_at'] ?? null,
-                    ];
-                }
-
-                return $result;
+            // Сортируем стеки по имени
+            usort($stacksWithDetails, function($a, $b) {
+                return strcmp($a['name'], $b['name']);
             });
 
             $duration = round((microtime(true) - $startTime) * 1000);
-            Log::info("Dashboard data loaded in {$duration}ms, filtered out " . (count($allStacks) - count($stacks)) . " stacks.");
+            Log::info("Dashboard data loaded in {$duration}ms");
 
             return response()->json([
                 'success' => true,
@@ -108,5 +86,31 @@ class DashboardController extends Controller
             ], 500);
         }
     }
-}
 
+    private function determineStackStatus($containers)
+    {
+        if (empty($containers)) {
+            return 'stopped';
+        }
+
+        $allRunning = true;
+        $anyRunning = false;
+
+        foreach ($containers as $container) {
+            $state = $container['state'] ?? '';
+            if ($state === 'running') {
+                $anyRunning = true;
+            } else {
+                $allRunning = false;
+            }
+        }
+
+        if ($allRunning && $anyRunning) {
+            return 'running';
+        } elseif ($anyRunning) {
+            return 'partial';
+        } else {
+            return 'stopped';
+        }
+    }
+}

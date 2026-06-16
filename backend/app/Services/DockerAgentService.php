@@ -70,7 +70,8 @@ class DockerAgentService
         try {
             $response = Http::timeout(10)->get($this->baseUrl . '/api/stacks');
             if ($response->successful()) {
-                return $response->json()['stacks'] ?? [];
+                $data = $response->json();
+                return $data['stacks'] ?? [];
             }
             return [];
         } catch (\Exception $e) {
@@ -82,9 +83,10 @@ class DockerAgentService
     public function getContainersByStack($stackName)
     {
         try {
-            $response = Http::timeout(10)->get($this->baseUrl . '/api/stacks/' . $stackName . '/info');
+            $response = Http::timeout(10)->get($this->baseUrl . '/api/stacks/' . urlencode($stackName) . '/info');
             if ($response->successful()) {
-                return $response->json()['containers'] ?? [];
+                $data = $response->json();
+                return $data['containers'] ?? [];
             }
             return [];
         } catch (\Exception $e) {
@@ -92,7 +94,6 @@ class DockerAgentService
             return [];
         }
     }
-
     public function deleteStack($stackName)
     {
         try {
