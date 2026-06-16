@@ -53,23 +53,97 @@ setInterval(() => {
 }, 60000);
 
 function getStacks() {
-  const containersOutput = execSync('docker ps -a --format "{{.Names}}"', {
-    encoding: "utf8",
-  });
-  const allContainers = containersOutput
-    .trim()
-    .split("\n")
-    .filter((n) => n);
+  try {
+    // Получаем все контейнеры
+    const containersOutput = execSync('docker ps -a --format "{{.Names}}"', {
+      encoding: "utf8",
+    });
+    const allContainers = containersOutput
+      .trim()
+      .split("\n")
+      .filter((n) => n);
 
-  const stackNames = new Set();
-  allContainers.forEach((containerName) => {
-    const parts = containerName.split("_");
-    if (parts.length > 1) {
-      stackNames.add(parts[0]);
-    }
-  });
+    // Собираем уникальные имена стеков
+    const stackNames = new Set();
+    allContainers.forEach((containerName) => {
+      const parts = containerName.split("_");
+      if (parts.length > 1) {
+        stackNames.add(parts[0]);
+      }
+    });
 
-  return Array.from(stackNames).map((name) => ({ name, running: true }));
+    // Для каждого стека получаем информацию о контейнерах
+    const stacks = Array.from(stackNames).map((name) => {
+      try {
+        const containers = getDetailedContainerInfo(name);
+        const ports = getContainerPorts(name);
+        
+        // Пытаемся получить информацию из .env файла
+        let gitBranch = 'develop';
+        let version = 'v1.0.0';
+        let status = 'running';
+        
+        const stackDir = path.join(global.STACKS_DIR, name);
+        const envPath = path.join(stackDir, '.env');
+        
+        if (fs.existsSync(envPath)) {
+          const envContent = fs.readFileSync(envPath, 'utf8');
+          const branchMatch = envContent.match(/^GIT_BRANCH=(.+)$/m);
+          if (branchMatch) gitBranch = branchMatch[1];
+        }
+
+        // Проверяем статус контейнеров
+        const allRunning = containers.every(c => c.state === 'running');
+        const anyRunning = containers.some(c => c.state === 'running');
+        
+        if (containers.length === 0) {
+          status = 'stopped';
+        } else if (allRunning) {
+          status = 'running';
+        } else if (anyRunning) {
+          status = 'partial';
+        } else {
+          status = 'stopped';
+        }
+
+        return {
+          id: null, // ID будет заполнен из БД в контроллере
+          name: name,
+          git_branch: gitBranch,
+          version: version,
+          status: status,
+          containers: containers,
+          created_at: null, // Дата будет из БД
+          ports: ports,
+          urls: {
+            app: ports.app ? `http://localhost:${ports.app}` : null,
+            web: ports.web ? `http://localhost:${ports.web}` : null,
+            frontend: ports.frontend ? `http://localhost:${ports.frontend}` : null,
+            phpmyadmin: ports.phpmyadmin ? `http://localhost:${ports.phpmyadmin}` : null
+          }
+        };
+      } catch (err) {
+        console.error(`Ошибка получения информации для стека ${name}:`, err);
+        return {
+          id: null,
+          name: name,
+          git_branch: 'develop',
+          version: 'v1.0.0',
+          status: 'unknown',
+          containers: [],
+          created_at: null
+        };
+      }
+    });
+
+    // Сортируем стеки по имени
+    stacks.sort((a, b) => a.name.localeCompare(b.name));
+    
+    return stacks;
+  } catch (err) {
+    console.error('Ошибка получения списка стеков:', err);
+    return [];
+  }
 }
 
 function getContainerPorts(stackName) {
